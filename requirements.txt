@@ -18,3 +18,8 @@ torchaudio==2.7.1
 tqdm==4.67.1
 transformers==4.53.2
 webrtcvad==2.0.10
+datasets==4.0.0
+accelerate==1.8.1
+jiwer==4.0.0
+torchcodec==0.4.0
+huggingface-hub==0.33.4
