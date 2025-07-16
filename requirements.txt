@@ -3,7 +3,7 @@ evaluate==0.4.5
 faiss_cpu==1.11.0
 fastapi==0.116.1
 gtts==2.5.4
-numpy==2.3.1
+numpy==2.2.6
 openai==1.95.1
 opencc_python_reimplemented==0.1.7
 pandas==2.3.1
@@ -23,3 +23,10 @@ accelerate==1.8.1
 jiwer==4.0.0
 torchcodec==0.4.0
 huggingface-hub==0.33.4
+uvicorn==0.34.3
+psycopg2-binary==2.9.10
+langchain==0.3.26
+langchain-core==0.3.69
+langchain-text-splitters==0.3.8
+prometheus-fastapi-instrumentator==7.1.0
+prometheus_client==0.22.1

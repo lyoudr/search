@@ -1,5 +1,5 @@
 from fastapi import FastAPI 
-
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.routes import audio
 
@@ -7,6 +7,7 @@ app = FastAPI(
     title="Audio AI",
 )
 app.include_router(audio.router)
+Instrumentator().instrument(app).expose(app)
 
 
 @app.get("/")

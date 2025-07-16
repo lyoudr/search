@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: search
+  template:
+    metadata:
+      labels:
+        app: search
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: search
+        image: asia-east1-docker.pkg.dev/ann-project-390401/ann/search:v1
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          value: postgresql://postgres:mysecretpassword@postgres-service:5432/postgres
+        - name: SOURCE_DIR
+          value: app/sources
+        - name: OPENAI_API_KEY
+          value: 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
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: search
+spec:
+  selector:
+    app: search
+  type: LoadBalancer
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+    
