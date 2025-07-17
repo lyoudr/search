@@ -23,11 +23,20 @@ spec:
         - containerPort: 8000
         env:
         - name: DATABASE_URL
-          value: postgresql://postgres:mysecretpassword@postgres-service:5432/postgres
+          valueFrom:
+            secretKeyRef:
+              name: search-env
+              key: DATABASE_URL
         - name: SOURCE_DIR
-          value: app/sources
+          valueFrom:
+            secretKeyRef:
+              name: search-env
+              key: SOURCE_DIR
         - name: OPENAI_API_KEY
-          value: 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
+          valueFrom:
+            secretKeyRef:
+              name: search-env 
+              key: OPENAI_API_KEY
 ---
 apiVersion: v1
 kind: Service

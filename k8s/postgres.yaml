@@ -48,7 +48,10 @@ spec:
             - containerPort: 5432
           env:
             - name: POSTGRES_PASSWORD
-              value: mysecretpassword
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-env
+                  key: POSTGRES_PASSWORD
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           resources:
@@ -67,7 +70,10 @@ spec:
             - containerPort: 9187
           env:
             - name: DATA_SOURCE_NAME
-              value: "postgresql://postgres:mysecretpassword@localhost:5432/postgres?sslmode=disable"
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-env
+                  key: DATA_SOURCE_NAME
           resources:
             requests:
               memory: "32Mi"

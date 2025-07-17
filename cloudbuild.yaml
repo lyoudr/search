@@ -1,0 +1,35 @@
+steps:
+  # Step 1: Build and push your app Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build 
+      - '-t'
+      - 'asia-east-docker.pkg.dev/$PROJECT_ID/search/search:$SHORT_SHA'
+      - '.'
+  
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push 
+      - 'asia-east1-docker.pkg.dev/$PROJECT_ID/search/search:$SHORT_SHA'
+
+  # Step 2: Set the current GKE context
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'container'
+      - 'clusters'
+      - 'get-credentials'
+      - 'anntest'
+      - '--region=asia-east1'
+    id: 'Fetch GKE credentials'
+  
+  # Step 3: Deploy multiple Kubernetes manifests to GKE
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args:
+      - 'apply'
+      - '-f'
+      - 'k8s/'
+    env:
+      - 'CLOUDSDK_COMPUTE_REGION=asia-east1'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=anntest'
+images:
+  - 'asia-east1-docker.pkg.dev/$PROJECT_ID/search/search:$SHORT_SHA'
