@@ -1,3 +1,6 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+  
 steps:
   # Step 1: Build and push your app Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
