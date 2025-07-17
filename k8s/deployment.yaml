@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: search
-        image: asia-east1-docker.pkg.dev/ann-project-390401/ann/search:v1
+        image: asia-east1-docker.pkg.dev/$PROJECT_ID/ann/search:$SHORT_SHA
         ports:
         - containerPort: 8000
         env:
