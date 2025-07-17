@@ -1,13 +1,13 @@
 options:
   logging: CLOUD_LOGGING_ONLY
-  
+
 steps:
   # Step 1: Build and push your app Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - build 
       - '-t'
-      - 'asia-east-docker.pkg.dev/$PROJECT_ID/search/search:$SHORT_SHA'
+      - 'asia-east1-docker.pkg.dev/$PROJECT_ID/search/search:$SHORT_SHA'
       - '.'
   
   - name: 'gcr.io/cloud-builders/docker'
