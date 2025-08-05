@@ -132,6 +132,8 @@ for epoch in range(20):
         optimizer.step()
         total_loss += loss.item()
     print(f"Epoch {epoch+1}, Loss: {total_loss:.4f}")
+
+
 # Making Recommendations
 model.eval()
 with torch.no_grade():

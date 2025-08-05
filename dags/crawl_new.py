@@ -12,7 +12,6 @@
 # PINECONE_API_KEY = ""
 # INDEX_NAME = "pubmed-index"
 
-# os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 # handle = Entrez.esearch(db="pubmed", term="cancer", retmax=100)
 # id_list = Entrez.read(handle)["IdList"]
