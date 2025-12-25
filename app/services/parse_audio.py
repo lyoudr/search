@@ -14,8 +14,8 @@ def convert_to_wav(input_dir: str, output_dir: str):
         command = [
             "ffmpeg",
             "-i", input_path,
-            "-ar", "16000",  # Set audio sample rate to 16kHz
-            "-ac", "1",      # Set number of audio channels to 1 (mono)
+            "-ar", "16000",       # Set audio sample rate to 16kHz
+            "-ac", "1",           # Set number of audio channels to 1 (mono)
             "-c:a", "pcm_s16le",  # Use PCM signed 16-bit little-endian format
             ouput_path
         ]

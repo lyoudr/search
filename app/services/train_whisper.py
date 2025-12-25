@@ -1,5 +1,3 @@
-from airflow import DAG 
-from airflow.operators.python import PythonOperator
 from datetime import datetime
 import os
 import json
@@ -109,11 +107,3 @@ def upload_to_huggingface():
         token=HF_TOKEN
     )
     print(f"✅ Uploaded to https://huggingface.co/{REPO_ID}")
-
-with DAG("whisper_fine_tune", schedule_interval="0 3 * * 1", catchup=False, default_args=default_args) as dag:
-    download = PythonOperator(task_id="download_data", python_callable=download_from_gcs)
-    preprocess = PythonOperator(task_id="generate_jsonl", python_callable=generate_jsonl)
-    train = PythonOperator(task_id="train_model", python_callable=fine_tune_whisper)
-    upload = PythonOperator(task_id="upload_model", python_callable=upload_to_huggingface)
-
-    download >> preprocess >> train >> upload
