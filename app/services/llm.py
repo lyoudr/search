@@ -1,12 +1,22 @@
 from openai import OpenAI
 from sqlalchemy.orm import Session
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 
 from app.repositories import audio_repository
 
 client = OpenAI()
 
 
-def correct_whisper_text_gpt4(whisper_text: str) -> str:
+def correct_whisper_text_gpt4(whisper_text: str, model_name: str = "gpt-4") -> str:
+    """
+    modify Whisper transcribed text (不標點符號)
+    support GPT-4, Qwen2, Llama3
+
+    :param whisper_text: Whisper transcribed text
+    :param model_name: "gpt-4", "qwen2", "llama3"
+    :return: 修正過後的文字
+    """
+    
     prompt = (
         "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確：\n"
         "1. 不補上標點符號\n"
@@ -14,14 +24,35 @@ def correct_whisper_text_gpt4(whisper_text: str) -> str:
         f"原文：{whisper_text}\n"
         f"修正："
     )
+    # ---------- GPT-4 ----------
+    if model_name.lower() == "gpt-4":
+        response = client.chat.completions.create(
+            model="gpt-4", # * GPT-4
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3
+        )
+        return response.choices[0].message.content.strip()
+    
+    # ---------- Qwen2 ----------
+    elif model_name.lower() == "qwen2":
+        # 使用 HuggingFace Transformers 加載 Qwen2-7B-Instruct (文字版)
+        model_name_hf = "Qwen/Qwen2-7B-Instruct"
+        tokenizer = AutoTokenizer.from_pretrained(model_name_hf)
+        model = AutoModelForCausalLM.from_pretrained(model_name_hf, device_map="auto")
+        generator = pipeline("text-generation", model=model, tokenizer=tokenizer)
 
-    response = client.chat.completions.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.3
-    )
-
-    return response.choices[0].message.content.strip()
+        response = generator(prompt, max_length=512, do_sample=False)[0]["generated_text"]
+        return response.strip()
+    
+    # ---------- Llama3 ----------
+    elif model_name.lower() == "llama3":
+        # 使用 HuggingFace Transformers 加載 Llama-3-7B-Chat
+        model_name_hf = "meta-llama/Meta-Llama-3-8B"
+        tokenizer = AutoTokenizer.from_pretrained(model_name_hf)
+        model = AutoModelForCausalLM.from_pretrained(model_name_hf, device_map="auto")
+        generator = pipeline("text-generation", model=model, tokenizer=tokenizer)
+        response = generator(prompt, max_length=512, do_sample=False)[0]["generated_text"]
+        return response.strip()
 
 
 # Use Chain of Thought prompting means "breaking down complex problems into smaller, logic steps"
@@ -72,4 +103,15 @@ def batch_correct_whisper_text_with_gpt4(db: Session, limit: int = 10):
     
     db.commit()
 
+# & Hallucination 
+# * 1. Factual Hallucination -> Incorrect facts:
+# ~ The Eiffel Tower is in Berlin
 
+# * 2. Intrinsic Hallucination -> Contradiction within the text itself:
+# ~ I am both 25 and 30 years old at the same time.
+
+# * 3. Extrinsic Hallucination -> Information not supported by the source (for retrieval-augmented LLMs):
+# ~ Model cites a document, but the citation does not exist in the source.
+
+
+# Loss means how good a set of values is 
