@@ -29,4 +29,21 @@ def get_db():
     finally:
         db.close()
 
-from .analyze import Analyze
+# Export new models
+from .analyze import (
+    LLMModel,
+    AudioFile,
+    Transcription,
+    LLMOutput,
+    Evaluation
+)
+
+__all__ = [
+    "Base",
+    "get_db",
+    "LLMModel",
+    "AudioFile",
+    "Transcription",
+    "LLMOutput",
+    "Evaluation"
+]

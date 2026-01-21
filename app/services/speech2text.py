@@ -3,19 +3,19 @@ from sqlalchemy.orm import Session
 from openai import OpenAI
 from opencc import OpenCC
 
-from app.schemas.analyze import AnalyzeBase
-from app.repositories.audio_repository import (
-    create_analyze_record,
-    check_file_exist,
+from app.repositories import (
+    audio_file_repository,
+    transcription_repository
 )
 
 client = OpenAI()
 cc = OpenCC('s2t')
 
-def speech_to_text(audio_path: str) -> str:
+def speech_to_text(audio_path: str, engine: str = "whisper-1") -> str:
+    """Convert audio file to text using Whisper"""
     with open(audio_path, "rb") as audio_file:
         transcript = client.audio.transcriptions.create(
-            model="whisper-1", # * whisper-1
+            model=engine,  # whisper-1
             file=audio_file,
             language="zh"  # adjust as needed
         )
@@ -24,28 +24,47 @@ def speech_to_text(audio_path: str) -> str:
         print(f"Transcription for {audio_path}: {traditional_text}")
         return traditional_text
 
-def whisper_to_text(db: Session, input_dir: str):
+
+def whisper_to_text(db: Session, input_dir: str, engine: str = "whisper-1"):
     """
-    Converts all audio files in the input directory to text and creates Analyze records.
+    Converts all audio files in the input directory to text and creates AudioFile and Transcription records.
     """
     for root, _, files in os.walk(input_dir):
         for file_name in files:
             if file_name.endswith((".wav", ".mp3", ".m4a")):  # Add formats as needed
                 file_path = os.path.join(root, file_name)
                 try:
-                    existed = check_file_exist(db, file_path)
-                    if existed:
-                        continue
-                    whisper_text = speech_to_text(file_path)
+                    # Check if audio file already exists
+                    existing_audio_file = audio_file_repository.get_audio_file_by_path(db, file_path)
+                    if existing_audio_file:
+                        # Check if transcription already exists for this audio file
+                        existing_transcriptions = transcription_repository.get_transcriptions_by_audio_file(
+                            db, existing_audio_file.id
+                        )
+                        if existing_transcriptions:
+                            print(f"⏭️  Skipping {file_path} - transcription already exists")
+                            continue
+                        audio_file_id = existing_audio_file.id
+                    else:
+                        # Create new audio file record
+                        audio_file = audio_file_repository.create_audio_file(
+                            db=db,
+                            file_path=file_path,
+                            language="zh"
+                        )
+                        audio_file_id = audio_file.id
+                        print(f"✅ Created audio file record for {file_path} with ID {audio_file_id}")
 
-                    analyze_payload = AnalyzeBase(
-                        file_path=file_path,
-                        whisper_text=whisper_text,
-                        llm_text=None,
-                        ground_truth=None  # Optional, update if you have it
+                    # Transcribe audio
+                    whisper_text = speech_to_text(file_path, engine)
+
+                    # Create transcription record
+                    transcription = transcription_repository.create_transcription(
+                        db=db,
+                        audio_file_id=audio_file_id,
+                        engine=engine,
+                        text=whisper_text
                     )
-
-                    record = create_analyze_record(db=db, payload=analyze_payload)
-                    print(f"✅ Created record for {file_path} with ID {record.id}")
+                    print(f"✅ Created transcription for {file_path} with ID {transcription.id}")
                 except Exception as e:
                     print(f"❌ Failed to process {file_path}: {e}")

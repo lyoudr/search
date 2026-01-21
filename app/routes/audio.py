@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.config.settings import get_settings
 from app.models import get_db
@@ -13,8 +14,14 @@ from app.schemas.req_res.audio import (
 from app.services.parse_audio import convert_to_wav
 from app.services.split_audio import split_audio as split_audio_service
 from app.services.speech2text import whisper_to_text
-from app.services.llm import batch_correct_whisper_text_with_gpt4
-from app.repositories import audio_repository
+from app.services.llm import batch_correct_whisper_text
+from app.services.import_audio_files import import_audio_files_from_splited
+from app.repositories import (
+    transcription_repository,
+    llm_output_repository,
+    evaluation_repository
+)
+from app.services.wer import wer
 
 router = APIRouter(tags=["audio"], prefix="/audio")
 settings = get_settings()
@@ -63,14 +70,38 @@ def whisper_analyze(
 
 @router.post(
     "/whisper_wer",
-    summary="Whisper analyze audio files with WER",
+    summary="Calculate WER for Whisper transcriptions",
 )
-def whisper_wer(
-    db: Session = Depends(get_db)  # Assuming you have a function to get DB session
+def calculate_whisper_wer(
+    db: Session = Depends(get_db)
 ):
-    records = audio_repository.get_whisper_analyze_records(db) 
-    audio_repository.update_whisper_analyze_wer(db, records)
-    return WordErrorRateResponse(status = "Update WER successfully.")
+    """
+    Calculate WER for transcriptions that have ground truth.
+    Note: This requires evaluations to be created with ground_truth.
+    """
+    # Get all transcriptions
+    transcriptions = transcription_repository.get_all_transcriptions(db)
+    
+    updated_count = 0
+    for transcription in transcriptions:
+        # Get LLM outputs for this transcription
+        llm_outputs = llm_output_repository.get_llm_outputs_by_transcription(db, transcription.id)
+        
+        for llm_output in llm_outputs:
+            # Get or create evaluation
+            evaluation = evaluation_repository.get_evaluation_by_llm_output(db, llm_output.id)
+            
+            if evaluation and evaluation.ground_truth:
+                # Calculate WER for Whisper transcription vs ground truth
+                whisper_wer_value = wer(evaluation.ground_truth, transcription.text)
+                
+                # Update evaluation
+                evaluation_repository.update_evaluation_wer(
+                    db, evaluation.id, whisper_wer=whisper_wer_value
+                )
+                updated_count += 1
+    
+    return WordErrorRateResponse(status=f"Updated WER for {updated_count} evaluations successfully.")
 
 
 @router.post(
@@ -78,19 +109,64 @@ def whisper_wer(
     summary="Use GPT-4 to correct text",
 )
 def correct_text(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    llm_model_name: str = "gpt-4",
+    prompt_version: str = "v1",
+    limit: int = 10
 ):
-    batch_correct_whisper_text_with_gpt4(db)
-    return LLMCorrectResponse(status = "Process whisper text successfully.")
+    batch_correct_whisper_text(db, llm_model_name, prompt_version, limit)
+    return LLMCorrectResponse(status="Process whisper text successfully.")
 
 
 @router.post(
     "/llm_wer",
-    summary="LLM analyzed WER",
+    summary="Calculate WER for LLM outputs",
 )
-def llm_wer(
-    db: Session = Depends(get_db) 
+def calculate_llm_wer(
+    db: Session = Depends(get_db)
 ):
-    records = audio_repository.get_llm_analyze_records(db)
-    audio_repository.update_llm_analyze_wer(db, records)
-    return WordErrorRateResponse(status = "Update WER successfully.")
+    """
+    Calculate WER for LLM outputs that have ground truth.
+    """
+    # Get LLM outputs with ground truth
+    llm_outputs = llm_output_repository.get_llm_outputs_with_ground_truth(db)
+    
+    updated_count = 0
+    for llm_output in llm_outputs:
+        evaluation = evaluation_repository.get_evaluation_by_llm_output(db, llm_output.id)
+        
+        if evaluation and evaluation.ground_truth:
+            # Calculate WER for LLM output vs ground truth
+            llm_wer_value = wer(evaluation.ground_truth, llm_output.text)
+            
+            # Update evaluation
+            evaluation_repository.update_evaluation_wer(
+                db, evaluation.id, llm_wer=llm_wer_value
+            )
+            updated_count += 1
+    
+    return WordErrorRateResponse(status=f"Updated WER for {updated_count} LLM outputs successfully.")
+
+
+@router.post(
+    "/import/splited",
+    summary="Import all audio files from splited folder into audio_files table",
+)
+def import_splited_audio_files(
+    db: Session = Depends(get_db),
+    splited_dir: Optional[str] = None,
+    get_duration: bool = True
+):
+    """
+    Scan the splited folder and import all audio file paths into the audio_files table.
+    
+    :param splited_dir: Path to splited directory (relative to SOURCE_DIR, default: "splited")
+    :param get_duration: Whether to get audio file duration (requires ffmpeg)
+    :return: Import statistics
+    """
+    stats = import_audio_files_from_splited(db, splited_dir, get_duration)
+    return {
+        "status": "Success",
+        "message": f"Imported {stats['created']} audio files",
+        "statistics": stats
+    }

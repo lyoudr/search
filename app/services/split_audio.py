@@ -40,7 +40,7 @@ def save_chunks(audio_data, sample_rate, out_dir, base_name):
         chunk = audio_data[i:i+chunk_length]
         if len(chunk) < 10000:  # skip very small chunks (probably silence)
             continue
-        out_path = os.path.join(out_dir, f"{base_name}_part{i//chunk_length + 1}.wav")
+        out_path = os.path.join(out_dir, f"{base_name}_part{i//chunk_length + 1}_zh.wav")
         with wave.open(out_path, 'wb') as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
