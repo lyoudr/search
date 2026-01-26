@@ -55,17 +55,27 @@ def split_audio(
 
 @router.post(
     "/whisper/analyze",
-    summary="Whisper analyze audio files",
+    summary="Whisper analyze audio files and extract medical terms",
 )
 def whisper_analyze(
     payload: AnalyzeRequest,
-    db: Session = Depends(get_db)  # Assuming you have a function to get DB session
+    db: Session = Depends(get_db),
+    extraction_model: str = "gpt-4o"
 ):
+    """
+    Analyze audio files with Whisper.
+    Automatically extracts medical terms using LLM and stores them in query_index.
+    
+    :param payload: Request payload with input_dir
+    :param db: Database session
+    :param extraction_model: LLM model to use for term extraction (default: "gpt-4o")
+    """
     whisper_to_text(
         db,
-        f"{settings.SOURCE_DIR}/{payload.input_dir}"
+        f"{settings.SOURCE_DIR}/{payload.input_dir}",
+        extraction_model=extraction_model
     )
-    return ParseResponse(status="Success analyze audio file with Whisper")
+    return ParseResponse(status="Success analyze audio file with Whisper and extract medical terms")
 
 
 @router.post(
@@ -106,15 +116,41 @@ def calculate_whisper_wer(
 
 @router.post(
     "/llm",
-    summary="Use GPT-4 to correct text",
+    summary="Use LLM to correct text (with or without RAG)",
 )
 def correct_text(
     db: Session = Depends(get_db),
     llm_model_name: str = "gpt-4",
     prompt_version: str = "v1",
-    limit: int = 10
+    limit: int = 10,
+    use_rag: bool = False,
+    top_k_queries: int = 3,
+    top_k_documents: int = 5
 ):
-    batch_correct_whisper_text(db, llm_model_name, prompt_version, limit)
+    """
+    Correct Whisper transcriptions using LLM.
+    
+    Two modes:
+    1. RAG + LLM: Uses query_index and medical-documents for enhanced correction
+    2. Direct LLM: Uses LLM directly without RAG
+    
+    :param db: Database session
+    :param llm_model_name: LLM model to use (default: "gpt-4")
+    :param prompt_version: Version of the prompt (default: "v1")
+    :param limit: Maximum number of transcriptions to process
+    :param use_rag: Whether to use RAG (default: False - direct LLM correction)
+    :param top_k_queries: Number of queries to retrieve from query_index (only if use_rag=True)
+    :param top_k_documents: Number of documents per query from medical-documents (only if use_rag=True)
+    """
+    batch_correct_whisper_text(
+        db,
+        llm_model_name,
+        prompt_version,
+        limit,
+        use_rag=use_rag,
+        top_k_queries=top_k_queries,
+        top_k_documents=top_k_documents
+    )
     return LLMCorrectResponse(status="Process whisper text successfully.")
 
 
@@ -127,6 +163,7 @@ def calculate_llm_wer(
 ):
     """
     Calculate WER for LLM outputs that have ground truth.
+    Calculates both llm_wer (for direct LLM correction) and llm_rag_wer (for RAG-enhanced correction).
     """
     # Get LLM outputs with ground truth
     llm_outputs = llm_output_repository.get_llm_outputs_with_ground_truth(db)
@@ -136,12 +173,19 @@ def calculate_llm_wer(
         evaluation = evaluation_repository.get_evaluation_by_llm_output(db, llm_output.id)
         
         if evaluation and evaluation.ground_truth:
-            # Calculate WER for LLM output vs ground truth
-            llm_wer_value = wer(evaluation.ground_truth, llm_output.text)
+            # Calculate WER for direct LLM correction (text field)
+            llm_wer_value = None
+            if llm_output.text:
+                llm_wer_value = wer(evaluation.ground_truth, llm_output.text)
             
-            # Update evaluation
+            # Calculate WER for RAG-enhanced LLM correction (text_with_rag field)
+            llm_rag_wer_value = None
+            if llm_output.text_with_rag:
+                llm_rag_wer_value = wer(evaluation.ground_truth, llm_output.text_with_rag)
+            
+            # Update evaluation with both WER values
             evaluation_repository.update_evaluation_wer(
-                db, evaluation.id, llm_wer=llm_wer_value
+                db, evaluation.id, llm_wer=llm_wer_value, llm_rag_wer=llm_rag_wer_value
             )
             updated_count += 1
     
@@ -170,3 +214,4 @@ def import_splited_audio_files(
         "message": f"Imported {stats['created']} audio files",
         "statistics": stats
     }
+

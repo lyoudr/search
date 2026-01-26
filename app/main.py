@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routes import audio, models, generate
+from app.routes import audio, models, generate, documents
 
 app = FastAPI(
     title="Audio AI",
@@ -8,6 +8,7 @@ app = FastAPI(
 app.include_router(audio.router)
 app.include_router(models.router)
 app.include_router(generate.router)
+app.include_router(documents.router)
 
 
 

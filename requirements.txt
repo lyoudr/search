@@ -37,8 +37,24 @@ psycopg-binary==3.3.2
 psycopg2-binary==2.9.11
 prometheus-fastapi-instrumentator>=7.1
 webrtcvad==2.0.10
+python-multipart==0.0.21
 
 pydub==0.25.1
 opencc_python_reimplemented==0.1.7
 qwen==0.1.1
 jiwer==4.0.0
+matplotlib==3.10.8
+matplotlib-inline==0.2.1
+
+# --- vector database & document processing ---
+langchain==1.2.6
+langchain-core==1.2.7
+langchain-text-splitters==1.1.0
+langchain-community==0.4.1  # For HuggingFace embeddings
+docx==0.2.4
+python-docx==1.2.0
+mammoth==1.11.0
+pinecone==8.0.0
+pinecone-client==6.0.0
+pinecone-plugin-assistant==3.0.1
+pinecone-plugin-interface==0.0.7

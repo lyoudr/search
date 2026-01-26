@@ -122,17 +122,19 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
     # ========== Qwen Models (Hugging Face) ==========
     "qwen2.5-7b-instruct": ModelConfig(
         name="qwen2.5-7b-instruct",
-        display_name="Qwen2.5 7B Instruct",
-        provider="huggingface",
-        model_type="local",
-        hf_model_id="Qwen/Qwen2.5-7B-Instruct",
-        size="7B",
-        quantization="4bit",             # use 4-bit quantization for speed
-        load_in_4bit=True,               # enable 4-bit loading
-        max_context_length=8192,         # reduce to a practical context length
-        torch_dtype="float16",           # keep FP16 for GPU
-        device_map="auto",               # auto-select GPU
-        description="Qwen2.5 7B Instruct model from Hugging Face, optimized for fast text correction"
+        display_name="Qwen2.5 7B Instruct (Together)",
+        provider="openai",          # using OpenAI-compatible client
+        model_type="api",
+        api_model_name="Qwen/Qwen2.5-7B-Instruct:together",
+        max_context_length=8192,
+        temperature=0.3,
+        # 🚫 REMOVE ALL LOCAL FIELDS
+        hf_model_id=None,
+        load_in_4bit=False,
+        device_map=None,
+        torch_dtype=None,
+
+        description="Qwen2.5 7B via Together.ai API"
     ),
     
     "qwen2.5-14b-instruct": ModelConfig(
@@ -195,15 +197,18 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
     "llama-3-8b-instruct": ModelConfig(
         name="llama-3-8b-instruct",
         display_name="LLaMA 3 8B Instruct",
-        provider="huggingface",
-        model_type="local",
-        hf_model_id="meta-llama/Meta-Llama-3-8B-Instruct",
-        size="8B",
-        quantization="fp16",
+        provider="openai",
+        model_type="api",          # using OpenAI-compatible client
+        api_model_name="meta-llama/Meta-Llama-3-8B-Instruct",
         max_context_length=8192,
-        torch_dtype="float16",
-        device_map="auto",
-        description="Meta LLaMA 3 8B Instruct model"
+        temperature=0.3,
+        # 🚫 REMOVE ALL LOCAL FIELDS
+        hf_model_id=None,
+        load_in_4bit=False,
+        device_map=None,
+        torch_dtype=None,
+
+        description="Qwen2.5 7B via Together.ai API"
     ),
     
     "llama-3-70b-instruct": ModelConfig(

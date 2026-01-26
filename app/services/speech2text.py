@@ -7,6 +7,7 @@ from app.repositories import (
     audio_file_repository,
     transcription_repository
 )
+from app.services.transcription_term_processor import TranscriptionTermProcessor
 
 client = OpenAI()
 cc = OpenCC('s2t')
@@ -25,10 +26,23 @@ def speech_to_text(audio_path: str, engine: str = "whisper-1") -> str:
         return traditional_text
 
 
-def whisper_to_text(db: Session, input_dir: str, engine: str = "whisper-1"):
+def whisper_to_text(
+    db: Session,
+    input_dir: str,
+    engine: str = "whisper-1",
+    extraction_model: str = "gpt-4o"
+):
     """
     Converts all audio files in the input directory to text and creates AudioFile and Transcription records.
+    Automatically extracts medical terms using LLM and stores them in query_index.
+    
+    :param db: Database session
+    :param input_dir: Input directory containing audio files
+    :param engine: Whisper engine to use
+    :param extraction_model: LLM model to use for term extraction (default: "gpt-4o")
     """
+    term_processor = TranscriptionTermProcessor()
+    
     for root, _, files in os.walk(input_dir):
         for file_name in files:
             if file_name.endswith((".wav", ".mp3", ".m4a")):  # Add formats as needed
@@ -66,5 +80,16 @@ def whisper_to_text(db: Session, input_dir: str, engine: str = "whisper-1"):
                         text=whisper_text
                     )
                     print(f"✅ Created transcription for {file_path} with ID {transcription.id}")
+                    
+                    # Automatically extract medical terms using LLM and store in query_index
+                    try:
+                        term_processor.process_transcription(
+                            db,
+                            transcription.id,
+                            extraction_model=extraction_model
+                        )
+                    except Exception as e:
+                        print(f"⚠️  Failed to extract terms for transcription {transcription.id}: {e}")
+                            
                 except Exception as e:
                     print(f"❌ Failed to process {file_path}: {e}")

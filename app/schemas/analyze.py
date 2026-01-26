@@ -64,7 +64,8 @@ class LLMOutputBase(BaseModel):
     transcription_id: int
     llm_model_id: int
     prompt_version: Optional[str] = None
-    text: str
+    text: Optional[str] = None  # Direct LLM correction (without RAG)
+    text_with_rag: Optional[str] = None  # LLM correction with RAG
 
 
 class LLMOutputCreate(LLMOutputBase):
@@ -84,7 +85,8 @@ class EvaluationBase(BaseModel):
     llm_output_id: int
     ground_truth: Optional[str] = None
     whisper_wer: Optional[float] = None
-    llm_wer: Optional[float] = None
+    llm_wer: Optional[float] = None  # WER for direct LLM correction (without RAG)
+    llm_rag_wer: Optional[float] = None  # WER for LLM correction with RAG
 
 
 class EvaluationCreate(EvaluationBase):
