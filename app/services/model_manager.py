@@ -33,18 +33,18 @@ class ModelManager:
     
     def __init__(self):
         # OpenAI client for OpenAI API models (gpt-4o, gpt-4, etc.)
-        # self.openai_client = None
-        # if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
-        #     self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.openai_client = None
+        if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
+            self.openai_client = OpenAI(api_key=settings.OPENAI_API_KEY)
         
         # Hugging Face router client for HF models accessed via OpenAI-compatible API
         # Uncomment if you want to use Hugging Face router for some models
-        self.openai_client = None
-        if hasattr(settings, 'HF_TOKEN') and settings.HF_TOKEN:
-            self.openai_client = OpenAI(
-                base_url="https://router.huggingface.co/v1",
-                api_key=settings.HF_TOKEN
-            )
+        # self.openai_client = None
+        # if hasattr(settings, 'HF_TOKEN') and settings.HF_TOKEN:
+        #     self.openai_client = OpenAI(
+        #         base_url="https://router.huggingface.co/v1",
+        #         api_key=settings.HF_TOKEN
+        #     )
         
     
     def ensure_model_in_db(self, db: Session, model_name: str) -> int:

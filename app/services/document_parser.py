@@ -4,8 +4,7 @@ Handles parsing of various document formats (.doc, .docx, .pdf, .txt)
 """
 import os
 from pathlib import Path
-import subprocess
-import tempfile
+
 
 def parse_doc_file(file_path: str) -> str:
     """

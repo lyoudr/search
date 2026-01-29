@@ -65,9 +65,10 @@ class LLMOutput(Base):
     transcription_id = Column(Integer, ForeignKey("transcriptions.id"), nullable=False)
     llm_model_id = Column(Integer, ForeignKey("llm_models.id"), nullable=False)
 
-    prompt_version = Column(String(50))     # v1 / v2 / medical_v3
-    text = Column(Text, nullable=True)       # Direct LLM correction (without RAG)
-    text_with_rag = Column(Text, nullable=True)  # LLM correction with RAG
+    prompt_version = Column(String(50))                     # v1 / v2 / medical_v3
+    text = Column(Text, nullable=True)                      # Direct LLM correction (without RAG)
+    text_with_rag = Column(Text, nullable=True)             # LLM correction with RAG (using medical documents)
+    text_with_mts = Column(Text, nullable=True)             # LLM correction with MTSamples RAG
 
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
@@ -86,8 +87,9 @@ class Evaluation(Base):
     ground_truth = Column(Text, nullable=True)
 
     whisper_wer = Column(Float)
-    llm_wer = Column(Float)  # WER for direct LLM correction (without RAG)
-    llm_rag_wer = Column(Float)  # WER for LLM correction with RAG
+    llm_wer = Column(Float)                    # WER for direct LLM correction (without RAG)
+    llm_rag_wer = Column(Float)                 # WER for LLM correction with RAG
+    llm_mts_wer = Column(Float)                 # WER for LLM correction with MTSamples RAG
 
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 

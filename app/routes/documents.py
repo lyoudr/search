@@ -1,11 +1,9 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from typing import Optional
-import os
 import shutil
 from pathlib import Path
 
-from app.models import get_db
+
 from app.services.document_processor import DocumentProcessor
 from app.config.settings import get_settings
 
@@ -168,4 +166,8 @@ def search_documents(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+
+
 

@@ -4,7 +4,8 @@ from app.models.analyze import LLMOutput
 
 def create_llm_output(db: Session, transcription_id: int, llm_model_id: int,
                       prompt_version: Optional[str], text: Optional[str] = None,
-                      text_with_rag: Optional[str] = None) -> LLMOutput:
+                      text_with_rag: Optional[str] = None,
+                      text_with_mts: Optional[str] = None) -> LLMOutput:
     """
     Create a new LLM output record.
     
@@ -13,14 +14,16 @@ def create_llm_output(db: Session, transcription_id: int, llm_model_id: int,
     :param llm_model_id: LLM model ID
     :param prompt_version: Prompt version
     :param text: Direct LLM correction (without RAG)
-    :param text_with_rag: LLM correction with RAG
+    :param text_with_rag: LLM correction with RAG (using medical documents)
+    :param text_with_mts: LLM correction with MTSamples RAG
     """
     llm_output = LLMOutput(
         transcription_id=transcription_id,
         llm_model_id=llm_model_id,
         prompt_version=prompt_version,
         text=text,
-        text_with_rag=text_with_rag
+        text_with_rag=text_with_rag,
+        text_with_mts=text_with_mts
     )
     db.add(llm_output)
     db.commit()
@@ -55,6 +58,7 @@ def update_llm_output(
     llm_output_id: int,
     text: Optional[str] = None,
     text_with_rag: Optional[str] = None,
+    text_with_mts: Optional[str] = None,
     prompt_version: Optional[str] = None
 ) -> LLMOutput:
     """Update an existing LLM output record"""
@@ -66,6 +70,8 @@ def update_llm_output(
         llm_output.text = text
     if text_with_rag is not None:
         llm_output.text_with_rag = text_with_rag
+    if text_with_mts is not None:
+        llm_output.text_with_mts = text_with_mts
     if prompt_version is not None:
         llm_output.prompt_version = prompt_version
     

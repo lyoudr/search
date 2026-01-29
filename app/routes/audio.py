@@ -14,7 +14,7 @@ from app.schemas.req_res.audio import (
 from app.services.parse_audio import convert_to_wav
 from app.services.split_audio import split_audio as split_audio_service
 from app.services.speech2text import whisper_to_text
-from app.services.llm import batch_correct_whisper_text
+from app.services.llm import batch_correct_whisper_text, batch_correct_whisper_text_with_mts
 from app.services.import_audio_files import import_audio_files_from_splited
 from app.repositories import (
     transcription_repository,
@@ -131,15 +131,15 @@ def correct_text(
     Correct Whisper transcriptions using LLM.
     
     Two modes:
-    1. RAG + LLM: Uses query_index and medical-documents for enhanced correction
-    2. Direct LLM: Uses LLM directly without RAG
+    1. use_rag=False: Direct LLM correction (without RAG) - stores in 'text' column
+    2. use_rag=True: LLM correction with RAG (using medical documents) - stores in 'text_with_rag' column
     
     :param db: Database session
     :param llm_model_name: LLM model to use (default: "gpt-4")
     :param prompt_version: Version of the prompt (default: "v1")
     :param limit: Maximum number of transcriptions to process
-    :param use_rag: Whether to use RAG (default: False - direct LLM correction)
-    :param top_k_queries: Number of queries to retrieve from query_index (only if use_rag=True)
+    :param use_rag: Whether to use RAG (Retrieval-Augmented Generation) with medical documents (default: False)
+    :param top_k_queries: Number of queries (terms) to retrieve from query_index (only if use_rag=True)
     :param top_k_documents: Number of documents per query from medical-documents (only if use_rag=True)
     """
     batch_correct_whisper_text(
@@ -151,7 +151,50 @@ def correct_text(
         top_k_queries=top_k_queries,
         top_k_documents=top_k_documents
     )
-    return LLMCorrectResponse(status="Process whisper text successfully.")
+    mode_str = "with RAG" if use_rag else "without RAG"
+    return LLMCorrectResponse(status=f"Process whisper text successfully ({mode_str}).")
+
+
+@router.post(
+    "/llm/mts",
+    summary="Use LLM to correct text with MTSamples RAG",
+)
+def correct_text_with_mts(
+    db: Session = Depends(get_db),
+    llm_model_name: str = "gpt-4",
+    prompt_version: str = "v1",
+    limit: int = 10,
+    top_k_queries: int = 2,
+    medical_specialty: str = "Hematology - Oncology",
+    top_k: int = 5
+):
+    """
+    Correct Whisper transcriptions using LLM with MTSamples RAG.
+    
+    Process:
+    1. Use transcription_id to query query_index and get stored medical terms (keywords)
+    2. Use these keywords to search mtsamples index (filtered by medical_specialty)
+    3. Use retrieved mtsamples keywords as context for LLM correction
+    4. Store results in 'text_with_mts' column.
+    
+    :param db: Database session
+    :param llm_model_name: LLM model to use (default: "gpt-4")
+    :param prompt_version: Version of the prompt (default: "v1")
+    :param limit: Maximum number of transcriptions to process
+    :param top_k_queries: Number of queries (terms) to retrieve from query_index
+    :param medical_specialty: Medical specialty filter for MTSamples (default: "Hematology - Oncology")
+    :param top_k: Number of MTSamples transcriptions to retrieve per query
+    """
+    batch_correct_whisper_text_with_mts(
+        db,
+        llm_model_name,
+        prompt_version,
+        limit,
+        top_k_queries=top_k_queries,
+        medical_specialty=medical_specialty,
+        top_k=top_k
+    )
+    return LLMCorrectResponse(status=f"Process whisper text successfully (with MTSamples RAG, specialty: {medical_specialty}).")
 
 
 @router.post(
@@ -163,9 +206,9 @@ def calculate_llm_wer(
 ):
     """
     Calculate WER for LLM outputs that have ground truth.
-    Calculates both llm_wer (for direct LLM correction) and llm_rag_wer (for RAG-enhanced correction).
+    Calculates llm_wer (for direct LLM correction), llm_rag_wer (for RAG-enhanced correction),
+    and llm_mts_wer (for MTSamples RAG-enhanced correction).
     """
-    # Get LLM outputs with ground truth
     llm_outputs = llm_output_repository.get_llm_outputs_with_ground_truth(db)
     
     updated_count = 0
@@ -183,9 +226,25 @@ def calculate_llm_wer(
             if llm_output.text_with_rag:
                 llm_rag_wer_value = wer(evaluation.ground_truth, llm_output.text_with_rag)
             
-            # Update evaluation with both WER values
+            # Update evaluation with WER values
             evaluation_repository.update_evaluation_wer(
-                db, evaluation.id, llm_wer=llm_wer_value, llm_rag_wer=llm_rag_wer_value
+                db, evaluation.id, 
+                llm_wer=llm_wer_value, 
+                llm_rag_wer=llm_rag_wer_value
+            )
+            updated_count += 1
+    
+            # Calculate WER for MTSamples RAG-enhanced LLM correction (text_with_mts field)
+            llm_mts_wer_value = None
+            if llm_output.text_with_mts:
+                llm_mts_wer_value = wer(evaluation.ground_truth, llm_output.text_with_mts)
+            
+            # Update evaluation with WER values
+            evaluation_repository.update_evaluation_wer(
+                db, evaluation.id, 
+                llm_wer=llm_wer_value, 
+                llm_rag_wer=llm_rag_wer_value,
+                llm_mts_wer=llm_mts_wer_value
             )
             updated_count += 1
     

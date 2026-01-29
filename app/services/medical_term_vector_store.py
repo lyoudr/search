@@ -57,7 +57,8 @@ class MedicalTermVectorStore:
             }
             
             if transcription_id is not None:
-                term_metadata['transcription_id'] = transcription_id
+                # Ensure transcription_id is stored as int for Pinecone filter matching
+                term_metadata['transcription_id'] = int(transcription_id)
             
             metadatas.append(term_metadata)
             ids.append(f"term_{transcription_id}_{i}_{uuid.uuid4().hex[:8]}" if transcription_id else f"term_{uuid.uuid4().hex}")

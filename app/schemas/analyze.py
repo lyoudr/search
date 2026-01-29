@@ -65,7 +65,8 @@ class LLMOutputBase(BaseModel):
     llm_model_id: int
     prompt_version: Optional[str] = None
     text: Optional[str] = None  # Direct LLM correction (without RAG)
-    text_with_rag: Optional[str] = None  # LLM correction with RAG
+    text_with_rag: Optional[str] = None  # LLM correction with RAG (using medical documents)
+    text_with_mts: Optional[str] = None  # LLM correction with MTSamples RAG
 
 
 class LLMOutputCreate(LLMOutputBase):
@@ -87,6 +88,7 @@ class EvaluationBase(BaseModel):
     whisper_wer: Optional[float] = None
     llm_wer: Optional[float] = None  # WER for direct LLM correction (without RAG)
     llm_rag_wer: Optional[float] = None  # WER for LLM correction with RAG
+    llm_mts_wer: Optional[float] = None  # WER for LLM correction with MTSamples RAG
 
 
 class EvaluationCreate(EvaluationBase):
