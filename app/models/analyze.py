@@ -6,9 +6,13 @@ from sqlalchemy import (
     Float, 
     ForeignKey, 
     TIMESTAMP,
+    Date,
+    Boolean,
+    JSON,
     func
 )
 from sqlalchemy.orm import relationship
+from datetime import date
 
 from . import Base 
 
@@ -68,7 +72,7 @@ class LLMOutput(Base):
     prompt_version = Column(String(50))                     # v1 / v2 / medical_v3
     text = Column(Text, nullable=True)                      # Direct LLM correction (without RAG)
     text_with_rag = Column(Text, nullable=True)             # LLM correction with RAG (using medical documents)
-    text_with_mts = Column(Text, nullable=True)             # LLM correction with MTSamples RAG
+    text_with_hematology = Column(Text, nullable=True)      # LLM correction with Hematology Dictionary RAG
 
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
@@ -89,8 +93,29 @@ class Evaluation(Base):
     whisper_wer = Column(Float)
     llm_wer = Column(Float)                    # WER for direct LLM correction (without RAG)
     llm_rag_wer = Column(Float)                 # WER for LLM correction with RAG
-    llm_mts_wer = Column(Float)                 # WER for LLM correction with MTSamples RAG
+    llm_hematology_wer = Column(Float)          # WER for LLM correction with Hematology Dictionary RAG
 
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     llm_output = relationship("LLMOutput", backref="evaluation")
+
+
+# ~ ✅ Table 6: upcoming_events
+# Stores upcoming events/assignments from Notion
+class UpcomingEvent(Base):
+    __tablename__ = "upcoming_events"
+
+    id = Column(Integer, primary_key=True)
+    assignment_name = Column(String(255), nullable=False)  # Assignment Name (title)
+    classes = Column(JSON)  # Class (multi_select): ["A&P (LAB)", "Stats", ...]
+    done = Column(Boolean, default=False, nullable=False)  # Done (checkbox)
+    due_date = Column(Date, nullable=True)  # Due Date (date)
+    priority = Column(String(20), nullable=True)  # Priority (select): High, Medium, Low, Complete
+    status = Column(String(20), nullable=True)  # Status (status): Not started, In progress, Done
+    teachers = Column(JSON)  # Teacher (multi_select): ["Koreen Byrns", ...]
+    
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<UpcomingEvent(assignment_name={self.assignment_name}, status={self.status})>"
