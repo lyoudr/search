@@ -7,7 +7,7 @@ from app.repositories import (
 )
 from app.services.model_manager import model_manager
 from app.services.medical_document_retriever import MedicalDocumentRetriever
-from app.services.mtsamples_retriever import MTSamplesRetriever
+from app.services.hematology_retriever import HematologyRetriever
 
 
 def correct_whisper_text(
@@ -208,32 +208,30 @@ def batch_correct_whisper_text(
     print(f"✅ Processed {processed_count} transcriptions")
 
 
-def correct_whisper_text_with_mts(
+def correct_whisper_text_with_hematology(
     whisper_text: str,
     model_name: str = "gpt-4",
     transcription_id: Optional[int] = None,
     top_k_queries: int = 2,
-    medical_specialty: str = "Hematology - Oncology",
     top_k: int = 5
 ) -> str:
     """
-    Modify Whisper transcribed text (不標點符號) using LLM with MTSamples RAG.
+    Modify Whisper transcribed text (不標點符號) using LLM with Hematology Dictionary RAG.
     
     Process:
     1. Use transcription_id to query query_index and get stored medical terms (keywords)
-    2. Use these keywords to search mtsamples index (filtered by medical_specialty)
-    3. Use retrieved mtsamples keywords as context for LLM correction
+    2. Use these keywords to search hematology dictionary index
+    3. Use retrieved hematology dictionary entries as context for LLM correction
     
     :param whisper_text: Whisper transcribed text
     :param model_name: Model identifier from model registry
     :param transcription_id: Transcription ID (required to get keywords from query_index)
     :param top_k_queries: Number of queries (terms) to retrieve from query_index
-    :param medical_specialty: Medical specialty filter (default: "Hematology - Oncology")
-    :param top_k: Number of MTSamples transcriptions to retrieve per query
+    :param top_k: Number of hematology dictionary entries to retrieve per query
     :return: 修正過後的文字
     """
     if not transcription_id:
-        raise ValueError("transcription_id is required when using MTSamples RAG")
+        raise ValueError("transcription_id is required when using Hematology Dictionary RAG")
     
     # Base prompt for LLM correction
     base_prompt = (
@@ -243,28 +241,27 @@ def correct_whisper_text_with_mts(
     )
     
     try:
-        # Retrieve relevant MTSamples keywords using medical terms from query_index
-        retriever = MTSamplesRetriever()
-        mtsamples_keywords = retriever.retrieve_transcriptions_for_correction(
+        # Retrieve relevant hematology dictionary entries using medical terms from query_index
+        retriever = HematologyRetriever()
+        hematology_entries = retriever.retrieve_entries_for_correction(
             transcription_id=transcription_id,
             transcription_text=whisper_text,
             top_k_queries=top_k_queries,
-            medical_specialty=medical_specialty,
             top_k=top_k
         )
         
-        if mtsamples_keywords:
-            # Build prompt with retrieved MTSamples keywords as context
-            context = "\n\n".join([f"參考範例 {i+1}：{keywords}" for i, keywords in enumerate(mtsamples_keywords)])
+        if hematology_entries:
+            # Build prompt with retrieved hematology dictionary entries as context
+            context = "\n\n".join([f"參考範例 {i+1}：{entry}" for i, entry in enumerate(hematology_entries)])
             prompt = (
                 f"{base_prompt}"
-                f"以下是一些醫療轉錄範例關鍵詞（{medical_specialty}專科）作為參考：\n{context}\n\n"
+                f"以下是一些血液學醫學詞典範例作為參考：\n{context}\n\n"
                 f"原文：{whisper_text}\n"
                 f"修正："
             )
         else:
-            # No MTSamples found, fallback to direct LLM
-            print(f"⚠️  No MTSamples found for transcription {transcription_id}, using direct LLM correction")
+            # No hematology entries found, fallback to direct LLM
+            print(f"⚠️  No hematology dictionary entries found for transcription {transcription_id}, using direct LLM correction")
             prompt = f"{base_prompt}原文：{whisper_text}\n修正："
         
         corrected_text = model_manager.generate_text(
@@ -276,7 +273,7 @@ def correct_whisper_text_with_mts(
         return corrected_text
         
     except Exception as e:
-        print(f"⚠️  MTSamples RAG correction failed: {e}, falling back to direct LLM")
+        print(f"⚠️  Hematology Dictionary RAG correction failed: {e}, falling back to direct LLM")
         # Fallback to direct LLM
         prompt = f"{base_prompt}原文：{whisper_text}\n修正："
         corrected_text = model_manager.generate_text(
@@ -288,30 +285,28 @@ def correct_whisper_text_with_mts(
         return corrected_text
 
 
-def batch_correct_whisper_text_with_mts(
+def batch_correct_whisper_text_with_hematology(
     db: Session,
     llm_model_name: str = "gpt-4",
     prompt_version: str = "v1",
     limit: int = 10,
     top_k_queries: int = 2,
-    medical_specialty: str = "Hematology - Oncology",
     top_k: int = 5
 ):
     """
-    Batch correct Whisper transcriptions using LLM with MTSamples RAG and create LLMOutput records.
+    Batch correct Whisper transcriptions using LLM with Hematology Dictionary RAG and create LLMOutput records.
     
     Process:
     1. Use transcription_id to query query_index and get stored medical terms (keywords)
-    2. Use these keywords to search mtsamples index (filtered by medical_specialty)
-    3. Store results in 'text_with_mts' field.
+    2. Use these keywords to search hematology dictionary index
+    3. Store results in 'text_with_hematology' field.
     
     :param db: Database session
     :param llm_model_name: Name of the LLM model to use (default: "gpt-4")
     :param prompt_version: Version of the prompt used (default: "v1")
     :param limit: Maximum number of transcriptions to process
     :param top_k_queries: Number of queries (terms) to retrieve from query_index
-    :param medical_specialty: Medical specialty filter for MTSamples (default: "Hematology - Oncology")
-    :param top_k: Number of MTSamples transcriptions to retrieve per query
+    :param top_k: Number of hematology dictionary entries to retrieve per query
     """
     # Ensure model exists in database
     llm_model_id = model_manager.ensure_model_in_db(db, llm_model_name)
@@ -326,27 +321,26 @@ def batch_correct_whisper_text_with_mts(
             db, transcription.id, llm_model_id
         )
         
-        # Check if text_with_mts already exists
+        # Check if text_with_hematology already exists
         if existing_output:
-            if existing_output.text_with_mts:
-                print(f"⏭️  Skipping transcription ID {transcription.id} - MTSamples output already exists for model {llm_model_name}")
+            if existing_output.text_with_hematology:
+                print(f"⏭️  Skipping transcription ID {transcription.id} - Hematology Dictionary output already exists for model {llm_model_name}")
                 continue
         
         try:
-            # Correct the transcription text with MTSamples RAG
-            corrected_text = correct_whisper_text_with_mts(
+            # Correct the transcription text with Hematology Dictionary RAG
+            corrected_text = correct_whisper_text_with_hematology(
                 transcription.text,
                 model_name=llm_model_name,
                 transcription_id=transcription.id,
                 top_k_queries=top_k_queries,
-                medical_specialty=medical_specialty,
                 top_k=top_k
             )
             
             # Prepare update/create parameters
             update_params = {
                 "prompt_version": prompt_version,
-                "text_with_mts": corrected_text
+                "text_with_hematology": corrected_text
             }
             create_params = {
                 "transcription_id": transcription.id,
@@ -354,7 +348,7 @@ def batch_correct_whisper_text_with_mts(
                 "prompt_version": prompt_version,
                 "text": None,
                 "text_with_rag": None,
-                "text_with_mts": corrected_text
+                "text_with_hematology": corrected_text
             }
             
             # Create or update LLM output record
@@ -364,16 +358,146 @@ def batch_correct_whisper_text_with_mts(
                     llm_output_id=existing_output.id,
                     **update_params
                 )
-                print(f"✅ Updated transcription ID {transcription.id} -> LLM output ID {llm_output.id} (MTSamples): {corrected_text[:50]}...")
+                print(f"✅ Updated transcription ID {transcription.id} -> LLM output ID {llm_output.id} (Hematology): {corrected_text[:50]}...")
             else:
                 llm_output = llm_output_repository.create_llm_output(
                     db=db,
                     **create_params
                 )
-                print(f"✅ Corrected transcription ID {transcription.id} -> LLM output ID {llm_output.id} (MTSamples): {corrected_text[:50]}...")
+                print(f"✅ Corrected transcription ID {transcription.id} -> LLM output ID {llm_output.id} (Hematology): {corrected_text[:50]}...")
             processed_count += 1
         except Exception as e:
             print(f"❌ Failed to correct transcription ID {transcription.id}: {e}")
     
-    print(f"✅ Processed {processed_count} transcriptions with MTSamples RAG")
+    print(f"✅ Processed {processed_count} transcriptions with Hematology Dictionary RAG")
+
+
+def correct_whisper_text_with_agent(
+    whisper_text: str,
+    transcription_id: int,
+    model_name: str = "gpt-4",
+    initial_strategy: Optional[str] = None,
+    max_iterations: int = 3,
+    **kwargs
+) -> str:
+    """
+    Correct Whisper transcribed text using agent-based approach.
+    
+    The agent dynamically selects and combines tools (direct LLM, medical RAG, 
+    hematology RAG, combined RAG) to achieve the best correction quality.
+    
+    :param whisper_text: Whisper transcribed text
+    :param transcription_id: Transcription ID (required for RAG tools)
+    :param model_name: Model identifier from model registry
+    :param initial_strategy: Initial strategy to try (None for auto-select)
+    :param max_iterations: Maximum number of correction attempts
+    :param kwargs: Additional parameters for tools
+    :return: Corrected text
+    """
+    from app.services.transcription_agent import TranscriptionAgent
+    
+    agent = TranscriptionAgent(max_iterations=max_iterations)
+    
+    result = agent.correct_transcription(
+        whisper_text=whisper_text,
+        transcription_id=transcription_id,
+        model_name=model_name,
+        initial_strategy=initial_strategy,
+        **kwargs
+    )
+    
+    return result.get("corrected_text", whisper_text)
+
+
+def batch_correct_whisper_text_with_agent(
+    db: Session,
+    llm_model_name: str = "gpt-4",
+    prompt_version: str = "v1",
+    limit: int = 10,
+    max_iterations: int = 3,
+    initial_strategy: Optional[str] = None
+):
+    """
+    Batch correct Whisper transcriptions using agent-based approach.
+    
+    The agent dynamically selects the best correction strategy for each transcription.
+    Results are stored in 'text_agent' field.
+    
+    :param db: Database session
+    :param llm_model_name: Name of the LLM model to use (default: "gpt-4")
+    :param prompt_version: Version of the prompt used (default: "v1")
+    :param limit: Maximum number of transcriptions to process
+    :param max_iterations: Maximum number of correction attempts per transcription
+    :param initial_strategy: Initial strategy to try (None for auto-select)
+    """
+    from app.services.transcription_agent import TranscriptionAgent
+    
+    # Ensure model exists in database
+    llm_model_id = model_manager.ensure_model_in_db(db, llm_model_name)
+    
+    # Get transcriptions
+    transcriptions = transcription_repository.get_all_transcriptions(db)
+    processed_count = 0
+    
+    agent = TranscriptionAgent(max_iterations=max_iterations)
+    
+    for transcription in transcriptions[:limit]:
+        # Check if LLM output already exists for this transcription and model
+        existing_output = llm_output_repository.get_llm_output_by_transcription_and_model(
+            db, transcription.id, llm_model_id
+        )
+        
+        # Check if text_agent already exists
+        if existing_output:
+            if existing_output.text_agent:
+                print(f"⏭️  Skipping transcription ID {transcription.id} - Agent output already exists for model {llm_model_name}")
+                continue
+        
+        try:
+            # Correct the transcription text using agent
+            result = agent.correct_transcription(
+                whisper_text=transcription.text,
+                transcription_id=transcription.id,
+                model_name=llm_model_name,
+                initial_strategy=initial_strategy
+            )
+            
+            corrected_text = result.get("corrected_text", transcription.text)
+            method_used = result.get("method", "unknown")
+            quality = result.get("quality", {})
+            
+            # Prepare update/create parameters
+            update_params = {
+                "prompt_version": prompt_version,
+                "text_agent": corrected_text
+            }
+            create_params = {
+                "transcription_id": transcription.id,
+                "llm_model_id": llm_model_id,
+                "prompt_version": prompt_version,
+                "text": None,
+                "text_with_rag": None,
+                "text_with_hematology": None,
+                "text_agent": corrected_text
+            }
+            
+            # Create or update LLM output record
+            if existing_output:
+                llm_output = llm_output_repository.update_llm_output(
+                    db=db,
+                    llm_output_id=existing_output.id,
+                    **update_params
+                )
+                print(f"✅ Updated transcription ID {transcription.id} -> LLM output ID {llm_output.id} (Agent, method: {method_used}, quality: {quality.get('confidence', 'unknown')}): {corrected_text[:50]}...")
+            else:
+                llm_output = llm_output_repository.create_llm_output(
+                    db=db,
+                    **create_params
+                )
+                print(f"✅ Corrected transcription ID {transcription.id} -> LLM output ID {llm_output.id} (Agent, method: {method_used}, quality: {quality.get('confidence', 'unknown')}): {corrected_text[:50]}...")
+            processed_count += 1
+        except Exception as e:
+            print(f"❌ Failed to correct transcription ID {transcription.id}: {e}")
+    
+    print(f"✅ Processed {processed_count} transcriptions with Agent")
 

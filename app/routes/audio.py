@@ -14,7 +14,7 @@ from app.schemas.req_res.audio import (
 from app.services.parse_audio import convert_to_wav
 from app.services.split_audio import split_audio as split_audio_service
 from app.services.speech2text import whisper_to_text
-from app.services.llm import batch_correct_whisper_text, batch_correct_whisper_text_with_mts
+from app.services.llm import batch_correct_whisper_text, batch_correct_whisper_text_with_hematology, batch_correct_whisper_text_with_agent
 from app.services.import_audio_files import import_audio_files_from_splited
 from app.repositories import (
     transcription_repository,
@@ -156,45 +156,86 @@ def correct_text(
 
 
 @router.post(
-    "/llm/mts",
-    summary="Use LLM to correct text with MTSamples RAG",
+    "/llm/hematology",
+    summary="Use LLM to correct text with Hematology Dictionary RAG",
 )
-def correct_text_with_mts(
+def correct_text_with_hematology(
     db: Session = Depends(get_db),
     llm_model_name: str = "gpt-4",
     prompt_version: str = "v1",
     limit: int = 10,
     top_k_queries: int = 2,
-    medical_specialty: str = "Hematology - Oncology",
     top_k: int = 5
 ):
     """
-    Correct Whisper transcriptions using LLM with MTSamples RAG.
+    Correct Whisper transcriptions using LLM with Hematology Dictionary RAG.
     
     Process:
     1. Use transcription_id to query query_index and get stored medical terms (keywords)
-    2. Use these keywords to search mtsamples index (filtered by medical_specialty)
-    3. Use retrieved mtsamples keywords as context for LLM correction
-    4. Store results in 'text_with_mts' column.
+    2. Use these keywords to search hematology dictionary index
+    3. Use retrieved hematology dictionary entries as context for LLM correction
+    4. Store results in 'text_with_hematology' column.
     
     :param db: Database session
     :param llm_model_name: LLM model to use (default: "gpt-4")
     :param prompt_version: Version of the prompt (default: "v1")
     :param limit: Maximum number of transcriptions to process
     :param top_k_queries: Number of queries (terms) to retrieve from query_index
-    :param medical_specialty: Medical specialty filter for MTSamples (default: "Hematology - Oncology")
-    :param top_k: Number of MTSamples transcriptions to retrieve per query
+    :param top_k: Number of hematology dictionary entries to retrieve per query
     """
-    batch_correct_whisper_text_with_mts(
+    batch_correct_whisper_text_with_hematology(
         db,
         llm_model_name,
         prompt_version,
         limit,
         top_k_queries=top_k_queries,
-        medical_specialty=medical_specialty,
         top_k=top_k
     )
-    return LLMCorrectResponse(status=f"Process whisper text successfully (with MTSamples RAG, specialty: {medical_specialty}).")
+    return LLMCorrectResponse(status=f"Process whisper text successfully (with Hematology Dictionary RAG).")
+
+
+@router.post(
+    "/llm/agent",
+    summary="Use Agent to correct text with dynamic tool selection",
+)
+def correct_text_with_agent(
+    db: Session = Depends(get_db),
+    llm_model_name: str = "gpt-4",
+    prompt_version: str = "v1",
+    limit: int = 10,
+    max_iterations: int = 3,
+    initial_strategy: Optional[str] = None
+):
+    """
+    Correct Whisper transcriptions using Agent-based approach.
+    
+    The agent dynamically selects and combines tools (direct LLM, medical RAG, 
+    hematology RAG, combined RAG) to achieve the best correction quality.
+    
+    Process:
+    1. Agent analyzes the transcription
+    2. Selects initial strategy (or uses provided one)
+    3. Tries different tools based on quality assessments
+    4. Iterates if quality is low
+    5. Stores results in 'text_agent' column
+    
+    :param db: Database session
+    :param llm_model_name: LLM model to use (default: "gpt-4")
+    :param prompt_version: Version of the prompt (default: "v1")
+    :param limit: Maximum number of transcriptions to process
+    :param max_iterations: Maximum number of correction attempts per transcription
+    :param initial_strategy: Initial strategy to try (None for auto-select)
+                            Options: "direct_llm", "medical_document_rag", "hematology_rag", "combined_rag"
+    """
+    batch_correct_whisper_text_with_agent(
+        db,
+        llm_model_name,
+        prompt_version,
+        limit,
+        max_iterations=max_iterations,
+        initial_strategy=initial_strategy
+    )
+    return LLMCorrectResponse(status=f"Process whisper text successfully (with Agent).")
 
 
 @router.post(
@@ -207,7 +248,8 @@ def calculate_llm_wer(
     """
     Calculate WER for LLM outputs that have ground truth.
     Calculates llm_wer (for direct LLM correction), llm_rag_wer (for RAG-enhanced correction),
-    and llm_mts_wer (for MTSamples RAG-enhanced correction).
+    llm_hematology_wer (for Hematology Dictionary RAG-enhanced correction),
+    and llm_agent_wer (for agent-based correction).
     """
     llm_outputs = llm_output_repository.get_llm_outputs_with_ground_truth(db)
     
@@ -226,25 +268,23 @@ def calculate_llm_wer(
             if llm_output.text_with_rag:
                 llm_rag_wer_value = wer(evaluation.ground_truth, llm_output.text_with_rag)
             
-            # Update evaluation with WER values
-            evaluation_repository.update_evaluation_wer(
-                db, evaluation.id, 
-                llm_wer=llm_wer_value, 
-                llm_rag_wer=llm_rag_wer_value
-            )
-            updated_count += 1
-    
-            # Calculate WER for MTSamples RAG-enhanced LLM correction (text_with_mts field)
-            llm_mts_wer_value = None
-            if llm_output.text_with_mts:
-                llm_mts_wer_value = wer(evaluation.ground_truth, llm_output.text_with_mts)
+            # Calculate WER for Hematology Dictionary RAG-enhanced LLM correction (text_with_hematology field)
+            llm_hematology_wer_value = None
+            if llm_output.text_with_hematology:
+                llm_hematology_wer_value = wer(evaluation.ground_truth, llm_output.text_with_hematology)
             
-            # Update evaluation with WER values
+            # Calculate WER for agent-based LLM correction (text_agent field)
+            llm_agent_wer_value = None
+            if llm_output.text_agent:
+                llm_agent_wer_value = wer(evaluation.ground_truth, llm_output.text_agent)
+            
+            # Update evaluation with all WER values
             evaluation_repository.update_evaluation_wer(
                 db, evaluation.id, 
                 llm_wer=llm_wer_value, 
                 llm_rag_wer=llm_rag_wer_value,
-                llm_mts_wer=llm_mts_wer_value
+                llm_hematology_wer=llm_hematology_wer_value,
+                llm_agent_wer=llm_agent_wer_value
             )
             updated_count += 1
     

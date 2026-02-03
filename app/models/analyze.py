@@ -73,6 +73,7 @@ class LLMOutput(Base):
     text = Column(Text, nullable=True)                      # Direct LLM correction (without RAG)
     text_with_rag = Column(Text, nullable=True)             # LLM correction with RAG (using medical documents)
     text_with_hematology = Column(Text, nullable=True)      # LLM correction with Hematology Dictionary RAG
+    text_agent = Column(Text, nullable=True)                 # LLM correction using agent-based approach
 
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
@@ -94,6 +95,7 @@ class Evaluation(Base):
     llm_wer = Column(Float)                    # WER for direct LLM correction (without RAG)
     llm_rag_wer = Column(Float)                 # WER for LLM correction with RAG
     llm_hematology_wer = Column(Float)          # WER for LLM correction with Hematology Dictionary RAG
+    llm_agent_wer = Column(Float)                # WER for LLM correction using agent-based approach
 
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 

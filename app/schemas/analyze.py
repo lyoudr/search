@@ -66,7 +66,8 @@ class LLMOutputBase(BaseModel):
     prompt_version: Optional[str] = None
     text: Optional[str] = None  # Direct LLM correction (without RAG)
     text_with_rag: Optional[str] = None  # LLM correction with RAG (using medical documents)
-    text_with_mts: Optional[str] = None  # LLM correction with MTSamples RAG
+    text_with_hematology: Optional[str] = None  # LLM correction with Hematology Dictionary RAG
+    text_agent: Optional[str] = None  # LLM correction using agent-based approach
 
 
 class LLMOutputCreate(LLMOutputBase):
@@ -88,7 +89,8 @@ class EvaluationBase(BaseModel):
     whisper_wer: Optional[float] = None
     llm_wer: Optional[float] = None  # WER for direct LLM correction (without RAG)
     llm_rag_wer: Optional[float] = None  # WER for LLM correction with RAG
-    llm_mts_wer: Optional[float] = None  # WER for LLM correction with MTSamples RAG
+    llm_hematology_wer: Optional[float] = None  # WER for LLM correction with Hematology Dictionary RAG
+    llm_agent_wer: Optional[float] = None  # WER for LLM correction using agent-based approach
 
 
 class EvaluationCreate(EvaluationBase):
