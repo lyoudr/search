@@ -1,24 +1,8 @@
 案例四：膀胱移行細胞癌 (Bladder TCC) 主訴 (Chief complaint)：2 個月的肉眼血尿 (Gross hematuria for 2 months)。
 
 現病史 (Present illness)：
-這名 70 歲男性，有高血壓 (hypertension) 病史，定期在本院追蹤治療。在就診泌尿科門診前已有 2 個月肉眼血尿 (gross hematuria)。身體檢查顯示腹部柔軟，無壓痛 (tenderness)、敲擊痛 (knocking pain) 及觸及腫塊 (palpable mass)。他於 2023/05/08 接受經尿道膀胱腫瘤切除術 (TUR-BT)，病理顯示膀胱移行細胞癌侵入肌層 (bladder urothelial carcinoma-invaded muscle wall)，因此建議進一步評估。
+這名 70 歲男性，有高血壓 (hypertension) 病史，定期在本院追蹤治療。在就診泌尿科門診前已有 2 個月肉眼血尿 (gross hematuria)。身體檢查顯示腹部柔軟，無壓痛 (tenderness)、敲擊痛 (knocking pain) 及觸及腫塊 (palpable mass)。他於 2023/05/08 接受經尿道膀胱腫瘤切除術 (TUR-BT)，病理顯示膀胱移行細胞癌侵入肌層 (bladder urothelial carcinoma-invaded muscle wall)，因此建議進一步評估。印象 (Impression)：膀胱移行細胞癌 (Bladder urothelial carcinoma)。計畫 (Plan)：診斷計畫 (Diagnostic plan)：
 
-印象 (Impression)：
-膀胱移行細胞癌 (Bladder urothelial carcinoma)。
-
-計畫 (Plan)：
-
-診斷計畫 (Diagnostic plan)：
-
-腹部 CT (Abdominal CT) 或腹部 MRI (Abdominal MRI)。
-
-骨掃描 (Bone Scan)。
-
-治療計畫 (Therapeutic plan)：
-
-轉診心臟科及胸腔科 (Consult CV, Chest) 進行術前評估 (pre-OP evaluation)。
-
-衛教計畫 (Educational plan)：
-
-討論術後可能需要做新膀胱重建 (neobladder)，或加上輔助化學治療 (adjuvant C/T)。
+腹部 CT (Abdominal CT) 或腹部 MRI (Abdominal MRI)。骨掃描 (Bone Scan)。治療計畫 (Therapeutic plan)：轉診心臟科及胸腔科 (Consult CV, Chest) 進行術前評估 (pre-OP evaluation)。衛教計畫 (Educational plan)：討論術後可能需要做新膀胱重建 (neobladder)，或加上輔助化學治療 
+(adjuvant C/T)。
 

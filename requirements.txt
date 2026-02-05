@@ -59,3 +59,8 @@ pinecone==8.0.0
 pinecone-client==6.0.0
 pinecone-plugin-assistant==3.0.1
 pinecone-plugin-interface==0.0.7
+
+moviepy==2.2.1
+# Google
+google-cloud-speech==2.36.0
+googleapis-common-protos==1.72.0

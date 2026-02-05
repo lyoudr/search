@@ -6,9 +6,6 @@ from sqlalchemy import (
     Float, 
     ForeignKey, 
     TIMESTAMP,
-    Date,
-    Boolean,
-    JSON,
     func
 )
 from sqlalchemy.orm import relationship
@@ -69,12 +66,16 @@ class LLMOutput(Base):
     transcription_id = Column(Integer, ForeignKey("transcriptions.id"), nullable=False)
     llm_model_id = Column(Integer, ForeignKey("llm_models.id"), nullable=False)
 
-    prompt_version = Column(String(50))                     # v1 / v2 / medical_v3
-    text = Column(Text, nullable=True)                      # Direct LLM correction (without RAG)
-    text_with_rag = Column(Text, nullable=True)             # LLM correction with RAG (using medical documents)
-    text_with_hematology = Column(Text, nullable=True)      # LLM correction with Hematology Dictionary RAG
+    prompt_version = Column(String(50))                      # v1 / v2 / medical_v3
+    text = Column(Text, nullable=True)                       # Direct LLM correction (without RAG)
+    text_with_rag = Column(Text, nullable=True)              # LLM correction with RAG (using medical documents)
+    text_with_hematology = Column(Text, nullable=True)       # LLM correction with Hematology Dictionary RAG
     text_agent = Column(Text, nullable=True)                 # LLM correction using agent-based approach
-
+    
+    text_with_google = Column(Text, nullable=True)           # Cloud service tools
+    text_with_aws = Column(Text, nullable=True)
+    text_with_dr_ai = Column(Text, nullable=True)
+    
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     transcription = relationship("Transcription", backref="llm_outputs")
@@ -92,32 +93,13 @@ class Evaluation(Base):
     ground_truth = Column(Text, nullable=True)
 
     whisper_wer = Column(Float)
-    llm_wer = Column(Float)                    # WER for direct LLM correction (without RAG)
+    llm_wer = Column(Float)                     # WER for direct LLM correction (without RAG)
     llm_rag_wer = Column(Float)                 # WER for LLM correction with RAG
     llm_hematology_wer = Column(Float)          # WER for LLM correction with Hematology Dictionary RAG
-    llm_agent_wer = Column(Float)                # WER for LLM correction using agent-based approach
+    llm_agent_wer = Column(Float)               # WER for LLM correction using agent-based approach
 
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     llm_output = relationship("LLMOutput", backref="evaluation")
 
 
-# ~ ✅ Table 6: upcoming_events
-# Stores upcoming events/assignments from Notion
-class UpcomingEvent(Base):
-    __tablename__ = "upcoming_events"
-
-    id = Column(Integer, primary_key=True)
-    assignment_name = Column(String(255), nullable=False)  # Assignment Name (title)
-    classes = Column(JSON)  # Class (multi_select): ["A&P (LAB)", "Stats", ...]
-    done = Column(Boolean, default=False, nullable=False)  # Done (checkbox)
-    due_date = Column(Date, nullable=True)  # Due Date (date)
-    priority = Column(String(20), nullable=True)  # Priority (select): High, Medium, Low, Complete
-    status = Column(String(20), nullable=True)  # Status (status): Not started, In progress, Done
-    teachers = Column(JSON)  # Teacher (multi_select): ["Koreen Byrns", ...]
-    
-    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
-
-    def __repr__(self):
-        return f"<UpcomingEvent(assignment_name={self.assignment_name}, status={self.status})>"

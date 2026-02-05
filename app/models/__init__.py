@@ -35,8 +35,7 @@ from .analyze import (
     AudioFile,
     Transcription,
     LLMOutput,
-    Evaluation,
-    UpcomingEvent
+    Evaluation
 )
 
 __all__ = [
@@ -47,5 +46,4 @@ __all__ = [
     "Transcription",
     "LLMOutput",
     "Evaluation",
-    "UpcomingEvent"
 ]
