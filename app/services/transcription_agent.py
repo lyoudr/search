@@ -3,6 +3,7 @@ Transcription Correction Agent
 An intelligent agent that dynamically selects and combines tools to correct medical transcriptions
 """
 
+import asyncio
 from typing import Dict, Any, Optional, List
 
 from app.services.agent_tools import (
@@ -14,24 +15,29 @@ from app.services.quality_evaluator import QualityEvaluator
 class TranscriptionAgent:
     """
     Agent that orchestrates transcription correction using multiple tools.
-
+    
     The agent:
     1. Analyzes the transcription to determine the best strategy
-    2. Tries different tools based on quality assessments
-    3. Can combine multiple tools for better results
-    4. Iterates if quality is low
+    2. Runs multiple tools (potentially in parallel) based on quality assessments
+    3. Chooses the best result using the QualityEvaluator
     """
-
-    def __init__(self, max_iterations: int = 3):
+    
+    def __init__(self, max_iterations: int = 1, max_parallel_tools: int = 4):
         """
         Initialize the agent.
-
-        :param max_iterations: Maximum number of correction attempts
+        
+        :param max_iterations: Maximum number of correction rounds (kept for compatibility, default 1)
+        :param max_parallel_tools: Maximum number of tools to run in parallel
         """
+        # Tools are registered by name
         self.tools = {tool.name: tool for tool in get_available_tools()}
         self.quality_evaluator = QualityEvaluator()
         self.max_iterations = max_iterations
-
+        self.max_parallel_tools = max_parallel_tools
+    
+    # -------------------------------------------------------------------------
+    # Public API (synchronous wrapper)
+    # -------------------------------------------------------------------------
     def correct_transcription(
         self,
         whisper_text: str,
@@ -41,97 +47,150 @@ class TranscriptionAgent:
         **kwargs,
     ) -> Dict[str, Any]:
         """
-        Correct a transcription using agent-based approach.
-
-        :param whisper_text: Whisper transcribed text
-        :param transcription_id: Transcription ID
-        :param model_name: LLM model to use
-        :param initial_strategy: Initial strategy to try (None for auto-select)
-        :param kwargs: Additional parameters for tools
-        :return: Dictionary with corrected text and metadata
+        Synchronous wrapper for correct_transcription_async.
+        
+        This keeps the existing API compatible with synchronous callers
+        (e.g., FastAPI routes that are defined as normal `def` functions).
         """
-        methods_tried = []
-        best_result = None
-        best_score = 0.0
-
-        # Determine initial strategy
-        if initial_strategy is None:
-            initial_strategy = self._select_initial_strategy(whisper_text)
-
-        current_method = initial_strategy
-        iteration = 0
-
-        while iteration < self.max_iterations:
-            iteration += 1
-
-            # Skip if we've already tried this method
-            if current_method in methods_tried:
-                # Get next suggested method
-                current_method = self.quality_evaluator.suggest_next_method(
-                    current_method, methods_tried, whisper_text
-                )
-                if current_method is None:
-                    break
-
-            methods_tried.append(current_method)
-
-            # Execute the tool
-            result = self._execute_tool(
-                current_method,
+        return asyncio.run(
+            self.correct_transcription_async(
                 whisper_text=whisper_text,
                 transcription_id=transcription_id,
                 model_name=model_name,
+                initial_strategy=initial_strategy,
                 **kwargs,
             )
-
-            if not result.get("success"):
-                # Tool failed, try next method
-                continue
-
-            # Evaluate quality
-            quality = self.quality_evaluator.evaluate_correction_quality(
-                original_text=whisper_text,
-                corrected_text=result.get("corrected_text"),
-                method=current_method,
-                metadata=result,
-            )
-
-            result["quality"] = quality
-
-            # Track best result
-            if quality["score"] > best_score:
-                best_score = quality["score"]
-                best_result = result
-
-            # Check if we should continue
-            if quality["recommendation"] == "accept":
-                # Good enough, return this result
-                return {
-                    "corrected_text": result["corrected_text"],
-                    "method": current_method,
-                    "quality": quality,
-                    "methods_tried": methods_tried,
-                    "iterations": iteration,
-                    "final": True,
-                }
-
-            # Check if we should try alternative
-            if not self.quality_evaluator.should_try_alternative(
-                quality, methods_tried
-            ):
-                # Quality is acceptable, return best result
+        )
+    
+    # -------------------------------------------------------------------------
+    # Public API (async / concurrent version)
+    # -------------------------------------------------------------------------
+    async def correct_transcription_async(
+        self,
+        whisper_text: str,
+        transcription_id: int,
+        model_name: str = "gpt-4",
+        initial_strategy: Optional[str] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """
+        Correct a transcription using an async, agent-based approach.
+        
+        Strategy:
+        1. Decide an initial strategy based on the transcription content
+        2. Select a set of candidate tools (up to max_parallel_tools), prioritizing the initial strategy
+        3. Run all selected tools concurrently (each in a separate thread, since tool.execute() is sync)
+        4. Use QualityEvaluator to score each result and pick the best one
+        5. Optionally, could iterate multiple rounds, but by default we do a single parallel round
+        """
+        methods_tried: List[str] = []
+        best_result: Optional[Dict[str, Any]] = None
+        best_score: float = 0.0
+        iteration = 0
+        
+        # Determine initial strategy
+        if initial_strategy is None:
+            initial_strategy = self._select_initial_strategy(whisper_text)
+        
+        # Available tool names (as registered in self.tools)
+        available_methods: List[str] = list(self.tools.keys())
+        
+        # Simple ordering: put initial_strategy first (if it exists), then the rest
+        ordered_methods: List[str] = []
+        if initial_strategy in available_methods:
+            ordered_methods.append(initial_strategy)
+        ordered_methods.extend(
+            [m for m in available_methods if m != initial_strategy]
+        )
+        
+        # We currently do a single parallel round (iteration = 1),
+        # but we keep the variable in case we want to expand later.
+        while iteration < self.max_iterations:
+            iteration += 1
+            
+            # Select a batch of methods to run in parallel for this iteration
+            batch_methods = [
+                m for m in ordered_methods if m not in methods_tried
+            ][: self.max_parallel_tools]
+            
+            if not batch_methods:
                 break
-
-            # Get next method to try
-            current_method = self.quality_evaluator.suggest_next_method(
-                current_method, methods_tried, whisper_text
-            )
-
-            if current_method is None:
-                # No more methods to try
+            
+            methods_tried.extend(batch_methods)
+            
+            # Run all tools in this batch concurrently
+            tasks = [
+                self._execute_tool_async(
+                    method_name,
+                    whisper_text=whisper_text,
+                    transcription_id=transcription_id,
+                    model_name=model_name,
+                    **kwargs,
+                )
+                for method_name in batch_methods
+            ]
+            
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Evaluate quality for each successful result
+            for method_name, result in zip(batch_methods, results):
+                if isinstance(result, Exception):
+                    # Capture execution error as a failed tool
+                    continue
+                
+                if not result.get("success"):
+                    # Tool failed, skip
+                    continue
+                
+                corrected_text = result.get("corrected_text")
+                if not corrected_text:
+                    continue
+                
+                quality = self.quality_evaluator.evaluate_correction_quality(
+                    original_text=whisper_text,
+                    corrected_text=corrected_text,
+                    method=method_name,
+                    metadata=result,
+                )
+                
+                result["quality"] = quality
+                result["method"] = method_name
+                
+                # Track best result so far
+                if quality["score"] > best_score:
+                    best_score = quality["score"]
+                    best_result = result
+                
+                # If any result is clearly acceptable, we can stop early
+                if quality["recommendation"] == "accept":
+                    return {
+                        "corrected_text": corrected_text,
+                        "method": method_name,
+                        "quality": quality,
+                        "methods_tried": methods_tried,
+                        "iterations": iteration,
+                        "final": True,
+                    }
+            
+            # If we've reached here without an 'accept', decide whether to continue
+            if best_result is not None:
+                # If best score is reasonably good, we can stop
+                if best_result["quality"]["score"] >= 0.8:
+                    return {
+                        "corrected_text": best_result["corrected_text"],
+                        "method": best_result["method"],
+                        "quality": best_result["quality"],
+                        "methods_tried": methods_tried,
+                        "iterations": iteration,
+                        "final": True,
+                    }
+            
+            # If max_iterations == 1 (default) or we have tried all methods, break
+            remaining = [m for m in available_methods if m not in methods_tried]
+            if not remaining:
                 break
-
-        # Return best result found
+        
+        # Return best result found if any
         if best_result:
             return {
                 "corrected_text": best_result["corrected_text"],
@@ -141,27 +200,34 @@ class TranscriptionAgent:
                 "iterations": iteration,
                 "final": False,
             }
-
-        # Fallback: try direct LLM if nothing else worked
-        if "direct_llm" not in methods_tried:
-            result = self._execute_tool(
-                "direct_llm",
+        
+        # Fallback: try a simple direct LLM correction if such a tool exists
+        fallback_method_name = None
+        # Prefer a tool whose name contains 'direct_llm'
+        for name in available_methods:
+            if "direct_llm" in name:
+                fallback_method_name = name
+                break
+        
+        if fallback_method_name:
+            fallback_result = await self._execute_tool_async(
+                fallback_method_name,
                 whisper_text=whisper_text,
                 transcription_id=transcription_id,
                 model_name=model_name,
                 **kwargs,
             )
-            if result.get("success"):
+            if fallback_result.get("success") and fallback_result.get("corrected_text"):
                 return {
-                    "corrected_text": result["corrected_text"],
-                    "method": "direct_llm",
+                    "corrected_text": fallback_result["corrected_text"],
+                    "method": fallback_method_name,
                     "quality": {"score": 0.5, "confidence": "low"},
-                    "methods_tried": methods_tried + ["direct_llm"],
+                    "methods_tried": methods_tried + [fallback_method_name],
                     "iterations": iteration + 1,
                     "final": False,
                     "fallback": True,
                 }
-
+        
         # Last resort: return original text
         return {
             "corrected_text": whisper_text,
@@ -193,6 +259,11 @@ class TranscriptionAgent:
         # Check for hematology-specific terms
         hematology_keywords = ["血", "細胞", "骨髓", "淋巴", "白血球", "血小板"]
         if any(keyword in text_lower for keyword in hematology_keywords):
+            # Prefer hematology_vocabulary for vocabulary-focused corrections
+            # (it directly searches the hematology-vocab index)
+            # Fall back to hematology_rag if vocabulary tool is not available
+            if "hematology_vocabulary" in self.tools:
+                return "hematology_vocabulary"
             return "hematology_rag"
 
         # Default to medical document RAG
@@ -214,13 +285,22 @@ class TranscriptionAgent:
             }
 
         tool = self.tools[tool_name]
-
+        
         try:
             result = tool.execute(**kwargs)
             result["method"] = tool_name
             return result
         except Exception as e:
             return {"success": False, "error": str(e), "method": tool_name}
+
+    async def _execute_tool_async(self, tool_name: str, **kwargs) -> Dict[str, Any]:
+        """
+        Async wrapper around _execute_tool.
+        
+        Runs the synchronous tool.execute(...) in a thread so that multiple tools
+        can be executed concurrently without blocking the event loop.
+        """
+        return await asyncio.to_thread(self._execute_tool, tool_name, **kwargs)
 
     def get_available_strategies(self) -> List[str]:
         """Get list of available correction strategies"""

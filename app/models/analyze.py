@@ -103,3 +103,30 @@ class Evaluation(Base):
     llm_output = relationship("LLMOutput", backref="evaluation")
 
 
+# ~ ✅ Table 6: wer_statistics
+# Stores aggregated WER statistics across all evaluations
+class WerStatistics(Base):
+    __tablename__ = "wer_statistics"
+
+    id = Column(Integer, primary_key=True)
+    
+    # Total counts
+    total_evaluations = Column(Integer, default=0)  # Total number of evaluations with ground truth
+    
+    # Average WER values
+    avg_whisper_wer = Column(Float)                 # Average whisper_wer
+    avg_llm_wer = Column(Float)                     # Average llm_wer
+    avg_llm_rag_wer = Column(Float)                 # Average llm_rag_wer
+    avg_llm_hematology_wer = Column(Float)          # Average llm_hematology_wer
+    avg_llm_agent_wer = Column(Float)              # Average llm_agent_wer
+    
+    # Counts for each method (how many evaluations have this WER calculated)
+    count_whisper_wer = Column(Integer, default=0)  # Count of evaluations with whisper_wer
+    count_llm_wer = Column(Integer, default=0)       # Count of evaluations with llm_wer
+    count_llm_rag_wer = Column(Integer, default=0)  # Count of evaluations with llm_rag_wer
+    count_llm_hematology_wer = Column(Integer, default=0)  # Count of evaluations with llm_hematology_wer
+    count_llm_agent_wer = Column(Integer, default=0) # Count of evaluations with llm_agent_wer
+    
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+

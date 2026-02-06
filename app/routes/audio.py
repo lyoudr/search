@@ -292,6 +292,120 @@ def calculate_llm_wer(
 
 
 @router.post(
+    "/wer_statistics/recalculate",
+    summary="Recalculate total WER statistics (API2)"
+)
+def recalculate_wer_statistics(
+    db: Session = Depends(get_db)
+):
+    """
+    Recalculate total WER statistics from all evaluations and create a new record.
+    This is API2 - manually trigger recalculation of current total WER.
+    
+    Calculates:
+    - Total number of evaluations with ground truth
+    - Average WER for each method (whisper, llm, llm_rag, llm_hematology, llm_agent)
+    - Count of evaluations with each WER type calculated
+    
+    :return: Recalculated statistics
+    """
+    from app.services.wer_statistics_calculator import recalculate_wer_statistics
+    
+    stats = recalculate_wer_statistics(db)
+    
+    return {
+        "status": "success",
+        "message": "WER statistics recalculated successfully",
+        "statistics": stats
+    }
+
+
+@router.get(
+    "/wer_statistics/latest",
+    summary="Get latest WER statistics"
+)
+def get_latest_wer_statistics(
+    db: Session = Depends(get_db)
+):
+    """
+    Get the latest WER statistics record.
+    
+    :return: Latest statistics record
+    """
+    from app.repositories import wer_statistics_repository
+    
+    stats = wer_statistics_repository.get_latest_statistics(db)
+    
+    if not stats:
+        return {
+            "status": "not_found",
+            "message": "No WER statistics found. Please run recalculation first.",
+            "statistics": None
+        }
+    
+    return {
+        "status": "success",
+        "statistics": {
+            "id": stats.id,
+            "total_evaluations": stats.total_evaluations,
+            "avg_whisper_wer": stats.avg_whisper_wer,
+            "avg_llm_wer": stats.avg_llm_wer,
+            "avg_llm_rag_wer": stats.avg_llm_rag_wer,
+            "avg_llm_hematology_wer": stats.avg_llm_hematology_wer,
+            "avg_llm_agent_wer": stats.avg_llm_agent_wer,
+            "count_whisper_wer": stats.count_whisper_wer,
+            "count_llm_wer": stats.count_llm_wer,
+            "count_llm_rag_wer": stats.count_llm_rag_wer,
+            "count_llm_hematology_wer": stats.count_llm_hematology_wer,
+            "count_llm_agent_wer": stats.count_llm_agent_wer,
+            "created_at": stats.created_at.isoformat() if stats.created_at else None,
+            "updated_at": stats.updated_at.isoformat() if stats.updated_at else None,
+        }
+    }
+
+
+@router.get(
+    "/wer_statistics/all",
+    summary="Get all WER statistics records (history)"
+)
+def get_all_wer_statistics(
+    db: Session = Depends(get_db)
+):
+    """
+    Get all WER statistics records for history tracking.
+    
+    :return: List of all statistics records
+    """
+    from app.repositories import wer_statistics_repository
+    
+    all_stats = wer_statistics_repository.get_all_statistics(db)
+    
+    return {
+        "status": "success",
+        "count": len(all_stats),
+        "statistics": [
+            {
+                "id": stats.id,
+                "total_evaluations": stats.total_evaluations,
+                "avg_whisper_wer": stats.avg_whisper_wer,
+                "avg_llm_wer": stats.avg_llm_wer,
+                "avg_llm_rag_wer": stats.avg_llm_rag_wer,
+                "avg_llm_hematology_wer": stats.avg_llm_hematology_wer,
+                "avg_llm_agent_wer": stats.avg_llm_agent_wer,
+                "count_whisper_wer": stats.count_whisper_wer,
+                "count_llm_wer": stats.count_llm_wer,
+                "count_llm_rag_wer": stats.count_llm_rag_wer,
+                "count_llm_hematology_wer": stats.count_llm_hematology_wer,
+                "count_llm_agent_wer": stats.count_llm_agent_wer,
+                "created_at": stats.created_at.isoformat() if stats.created_at else None,
+                "updated_at": stats.updated_at.isoformat() if stats.updated_at else None,
+            }
+            for stats in all_stats
+        ]
+    }
+
+
+@router.post(
     "/import/splited",
     summary="Import all audio files from splited folder into audio_files table",
 )

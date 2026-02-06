@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 from app.services.document_processor import DocumentProcessor
+from app.services.hematology_dictionary_loader import HematologyDictionaryLoader
 from app.config.settings import get_settings
 
 router = APIRouter(tags=["documents"], prefix="/documents")
@@ -87,11 +88,11 @@ def upload_document(
 
 
 @router.post(
-    "/process/{file_name}",
+    "/process/{file_path:path}",
     summary="Process an existing file in the search folder"
 )
 def process_existing_file(
-    file_name: str,
+    file_path: str,
     embedding_model: str = "openai",
     chunk_size: int = 512,
     chunk_overlap: int = 50
@@ -99,19 +100,29 @@ def process_existing_file(
     """
     Process an existing file in the search folder.
     
-    :param file_name: Name of the file (e.g., "blood_cancer.doc")
+    :param file_path: Path to the file relative to SOURCE_DIR (e.g., "data/blood_cancer_new.docx" or "blood_cancer.doc")
     :param embedding_model: Embedding model to use
     :param chunk_size: Size of text chunks
     :param chunk_overlap: Overlap between chunks
     """
-    # Find file in search folder
-    file_path = Path(settings.SOURCE_DIR).parent / file_name
+    # Try multiple possible locations
+    possible_paths = [
+        Path(settings.SOURCE_DIR) / file_path,  # Relative to SOURCE_DIR (e.g., app/sources/data/blood_cancer_new.docx)
+        Path(settings.SOURCE_DIR).parent / file_path,  # Relative to parent of SOURCE_DIR
+        Path(file_path),  # Absolute path or current directory
+    ]
     
-    if not file_path.exists():
-        # Try in current directory
-        file_path = Path(file_name)
-        if not file_path.exists():
-            raise HTTPException(status_code=404, detail=f"File not found: {file_name}")
+    file_path_obj = None
+    for path in possible_paths:
+        if path.exists():
+            file_path_obj = path
+            break
+    
+    if not file_path_obj:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"File not found: {file_path}. Tried: {[str(p) for p in possible_paths]}"
+        )
     
     try:
         # Process document
@@ -166,6 +177,130 @@ def search_documents(
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+
+@router.post(
+    "/hematology-dictionary/upload",
+    summary="Upload and process hematology dictionary CSV to Pinecone"
+)
+def upload_hematology_dictionary(
+    file: UploadFile = File(...),
+    embedding_model: str = "openai",
+    text_field: str = "Term",
+    include_standard_term: bool = True
+):
+    """
+    Upload a hematology dictionary CSV file and process it:
+    1. Parse the CSV file
+    2. Create embeddings for each entry
+    3. Store embeddings in Pinecone "hematology" index
+    
+    :param file: CSV file to upload
+    :param embedding_model: Embedding model to use ("openai" or "huggingface")
+    :param text_field: Field name to use for embedding (default: "Term")
+    :param include_standard_term: Whether to include Standard_Term in the text for embedding
+    """
+    # Validate file type
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(
+            status_code=400,
+            detail="Only CSV files are supported for hematology dictionary"
+        )
+    
+    # Save uploaded file temporarily
+    upload_dir = Path(settings.SOURCE_DIR) / "uploads"
+    upload_dir.mkdir(exist_ok=True)
+    
+    file_path = upload_dir / file.filename
+    
+    try:
+        # Save file
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Process CSV
+        loader = HematologyDictionaryLoader(embedding_model=embedding_model)
+        result = loader.load_csv_to_vector_db(
+            csv_file_path=str(file_path),
+            text_field=text_field,
+            include_standard_term=include_standard_term
+        )
+        
+        return {
+            "status": "success",
+            "message": "Hematology dictionary processed and stored in Pinecone 'hematology' index",
+            "result": result
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process hematology dictionary: {str(e)}")
+    
+    finally:
+        # Clean up uploaded file
+        if file_path.exists():
+            file_path.unlink()
+
+
+@router.post(
+    "/hematology-dictionary/process/{file_path:path}",
+    summary="Process an existing hematology dictionary CSV file"
+)
+def process_hematology_dictionary(
+    file_path: str,
+    embedding_model: str = "openai",
+    text_field: str = "Term",
+    include_standard_term: bool = True
+):
+    """
+    Process an existing hematology dictionary CSV file in the search folder.
+    
+    :param file_path: Path to the CSV file relative to SOURCE_DIR (e.g., "data/hematology_dictionary.csv")
+    :param embedding_model: Embedding model to use
+    :param text_field: Field name to use for embedding (default: "Term")
+    :param include_standard_term: Whether to include Standard_Term in the text for embedding
+    """
+    # Try multiple possible locations
+    possible_paths = [
+        Path(settings.SOURCE_DIR) / file_path,  # Relative to SOURCE_DIR
+        Path(settings.SOURCE_DIR).parent / file_path,  # Relative to parent of SOURCE_DIR
+        Path(file_path),  # Absolute path or current directory
+    ]
+    
+    file_path_obj = None
+    for path in possible_paths:
+        if path.exists():
+            file_path_obj = path
+            break
+    
+    if not file_path_obj:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"File not found: {file_path}. Tried: {[str(p) for p in possible_paths]}"
+        )
+    
+    if not file_path_obj.suffix.lower() == '.csv':
+        raise HTTPException(
+            status_code=400,
+            detail="Only CSV files are supported for hematology dictionary"
+        )
+    
+    try:
+        # Process CSV
+        loader = HematologyDictionaryLoader(embedding_model=embedding_model)
+        result = loader.load_csv_to_vector_db(
+            csv_file_path=str(file_path_obj),
+            text_field=text_field,
+            include_standard_term=include_standard_term
+        )
+        
+        return {
+            "status": "success",
+            "message": "Hematology dictionary processed and stored in Pinecone 'hematology' index",
+            "result": result
+        }
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process hematology dictionary: {str(e)}")
 
 
 

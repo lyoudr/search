@@ -4,6 +4,9 @@ Evaluates the quality of corrected text to help agent make decisions
 """
 from typing import Dict, Any, Optional
 import re
+import json
+
+from app.services.model_manager import model_manager
 
 
 class QualityEvaluator:
@@ -22,15 +25,17 @@ class QualityEvaluator:
         original_text: str,
         corrected_text: str,
         method: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        model_name: str = "gpt-4o"
     ) -> Dict[str, Any]:
         """
-        Evaluate the quality of a correction.
+        Evaluate the quality of a correction using LLM to detect typos.
         
-        :param original_text: Original Whisper transcription
-        :param corrected_text: Corrected text
+        :param original_text: Original Whisper transcription (kept for compatibility, not used)
+        :param corrected_text: Corrected text to evaluate
         :param method: Method used for correction
         :param metadata: Additional metadata (e.g., documents retrieved)
+        :param model_name: LLM model to use for evaluation (default: "gpt-4o")
         :return: Quality score and assessment
         """
         if not corrected_text:
@@ -41,24 +46,35 @@ class QualityEvaluator:
                 "recommendation": "try_alternative"
             }
         
-        # Basic quality checks
         issues = []
         score = 1.0
         
-        # Check if text is too short (might be truncated)
-        if len(corrected_text) < len(original_text) * 0.5:
-            issues.append("Corrected text is significantly shorter than original")
-            score -= 0.3
+        # Use LLM to evaluate correction quality by detecting typos in corrected_text only
+        llm_evaluation = self._evaluate_with_llm(
+            corrected_text=corrected_text,
+            model_name=model_name
+        )
         
-        # Check if text is too long (might have hallucinations)
-        if len(corrected_text) > len(original_text) * 1.5:
-            issues.append("Corrected text is significantly longer than original")
-            score -= 0.2
+        # Extract LLM evaluation results
+        chinese_typos = llm_evaluation.get("chinese_typos", [])
+        english_typos = llm_evaluation.get("english_typos", [])
+        overall_quality = llm_evaluation.get("overall_quality", "unknown")
+        llm_score = llm_evaluation.get("score", 0.5)
         
-        # Check if correction actually changed anything
-        if corrected_text.strip() == original_text.strip():
-            issues.append("No changes made to original text")
-            score -= 0.2
+        # Calculate score based on LLM evaluation
+        # Start with LLM's score (0.0 to 1.0)
+        score = llm_score
+        
+        # Add penalties for detected typos
+        if chinese_typos:
+            penalty = min(0.3, len(chinese_typos) * 0.1)
+            score -= penalty
+            issues.append(f"Detected {len(chinese_typos)} Chinese typo(s): {', '.join(chinese_typos[:3])}")
+        
+        if english_typos:
+            penalty = min(0.3, len(english_typos) * 0.1)
+            score -= penalty
+            issues.append(f"Detected {len(english_typos)} English medical term typo(s): {', '.join(english_typos[:3])}")
         
         # Check for retrieval quality (if RAG was used)
         if metadata:
@@ -66,7 +82,7 @@ class QualityEvaluator:
                 docs_retrieved = metadata.get("documents_retrieved", 0)
                 if docs_retrieved == 0:
                     issues.append("No medical documents retrieved")
-                    score -= 0.3
+                    score -= 0.2
                 elif docs_retrieved < 2:
                     issues.append("Very few medical documents retrieved")
                     score -= 0.1
@@ -75,9 +91,18 @@ class QualityEvaluator:
                 entries_retrieved = metadata.get("entries_retrieved", 0)
                 if entries_retrieved == 0:
                     issues.append("No hematology entries retrieved")
-                    score -= 0.3
+                    score -= 0.2
                 elif entries_retrieved < 2:
                     issues.append("Very few hematology entries retrieved")
+                    score -= 0.1
+            
+            if method in ["hematology_vocabulary", "combined_rag"]:
+                vocab_terms_retrieved = metadata.get("vocab_terms_retrieved", 0)
+                if vocab_terms_retrieved == 0:
+                    issues.append("No hematology vocabulary terms retrieved")
+                    score -= 0.2
+                elif vocab_terms_retrieved < 2:
+                    issues.append("Very few hematology vocabulary terms retrieved")
                     score -= 0.1
         
         # Normalize score to 0-1 range
@@ -95,12 +120,100 @@ class QualityEvaluator:
             recommendation = "try_alternative"
         
         return {
-            "score": score,
+            "score": round(score, 2),
             "confidence": confidence,
             "issues": issues,
             "recommendation": recommendation,
-            "method": method
+            "method": method,
+            "llm_evaluation": {
+                "chinese_typos": chinese_typos,
+                "english_typos": english_typos,
+                "overall_quality": overall_quality
+            }
         }
+    
+    def _evaluate_with_llm(
+        self,
+        corrected_text: str,
+        model_name: str = "gpt-4o"
+    ) -> Dict[str, Any]:
+        """
+        Use LLM to evaluate correction quality by detecting typos in corrected_text.
+        
+        :param corrected_text: Corrected text to evaluate
+        :param model_name: LLM model to use
+        :return: Dictionary with evaluation results
+        """
+        prompt = f"""你是一位醫療文本質量評估專家。請檢查以下文本中是否有錯字：
+
+文本內容：
+{corrected_text}
+
+請仔細檢查：
+1. **中文錯字**：檢查文本中的中文是否有錯字（包括同音字、形近字等錯誤）
+2. **英文專業術語錯字**：檢查文本中的英文醫療專業術語是否有拼寫錯誤
+
+請以 JSON 格式回答，包含以下欄位：
+{{
+    "chinese_typos": ["錯字1", "錯字2", ...],  // 如果沒有錯字，返回空陣列 []
+    "english_typos": ["錯誤的英文術語1", "錯誤的英文術語2", ...],  // 如果沒有錯字，返回空陣列 []
+    "overall_quality": "excellent|good|fair|poor",  // 整體質量評估（excellent=無錯字，good=極少錯字，fair=有一些錯字，poor=很多錯字）
+    "score": 0.0-1.0,  // 質量分數，1.0 表示完美無錯，0.0 表示有很多錯誤
+    "explanation": "簡短說明評估結果"
+}}
+
+只返回 JSON，不要其他文字。"""
+
+        try:
+            response = model_manager.generate_text(
+                model_name=model_name,
+                prompt=prompt,
+                max_length=512,
+                temperature=0.1
+            )
+            
+            # Try to parse JSON from response
+            # Remove markdown code blocks if present
+            response = response.strip()
+            if response.startswith("```json"):
+                response = response[7:]
+            if response.startswith("```"):
+                response = response[3:]
+            if response.endswith("```"):
+                response = response[:-3]
+            response = response.strip()
+            
+            try:
+                evaluation = json.loads(response)
+                return {
+                    "chinese_typos": evaluation.get("chinese_typos", []),
+                    "english_typos": evaluation.get("english_typos", []),
+                    "overall_quality": evaluation.get("overall_quality", "unknown"),
+                    "score": float(evaluation.get("score", 0.5)),
+                    "explanation": evaluation.get("explanation", "")
+                }
+            except json.JSONDecodeError:
+                # Fallback: try to extract score from text
+                print(f"⚠️  Failed to parse LLM JSON response: {response}")
+                # Default to medium score if parsing fails
+                return {
+                    "chinese_typos": [],
+                    "english_typos": [],
+                    "overall_quality": "unknown",
+                    "score": 0.5,
+                    "explanation": "LLM evaluation parsing failed"
+                }
+        
+        except Exception as e:
+            print(f"⚠️  LLM evaluation failed: {e}")
+            # Fallback to default score
+            return {
+                "chinese_typos": [],
+                "english_typos": [],
+                "overall_quality": "unknown",
+                "score": 0.5,
+                "explanation": f"LLM evaluation error: {str(e)}"
+            }
     
     def should_try_alternative(
         self,
@@ -140,6 +253,7 @@ class QualityEvaluator:
             "direct_llm",
             "medical_document_rag",
             "hematology_rag",
+            "hematology_vocabulary",
             "combined_rag"
         ]
         

@@ -41,9 +41,21 @@ def update_evaluation_wer(
     llm_wer: Optional[float] = None,
     llm_rag_wer: Optional[float] = None,
     llm_hematology_wer: Optional[float] = None,
-    llm_agent_wer: Optional[float] = None
+    llm_agent_wer: Optional[float] = None,
+    auto_update_statistics: bool = True
 ):
-    """Update WER values for an evaluation"""
+    """
+    Update WER values for an evaluation.
+    
+    :param db: Database session
+    :param evaluation_id: Evaluation ID
+    :param whisper_wer: Whisper WER value
+    :param llm_wer: LLM WER value
+    :param llm_rag_wer: LLM RAG WER value
+    :param llm_hematology_wer: LLM Hematology WER value
+    :param llm_agent_wer: LLM Agent WER value
+    :param auto_update_statistics: Whether to automatically update total WER statistics (API1)
+    """
     evaluation = db.query(Evaluation).filter(Evaluation.id == evaluation_id).first()
     if evaluation:
         if whisper_wer is not None:
@@ -58,6 +70,16 @@ def update_evaluation_wer(
             evaluation.llm_agent_wer = llm_agent_wer
         db.commit()
         db.refresh(evaluation)
+        
+        # API1: Automatically update total WER statistics after each update
+        if auto_update_statistics:
+            try:
+                from app.services.wer_statistics_calculator import update_wer_statistics
+                update_wer_statistics(db)
+            except Exception as e:
+                # Don't fail the update if statistics calculation fails
+                print(f"⚠️  Failed to update WER statistics: {e}")
+    
     return evaluation
 
 
