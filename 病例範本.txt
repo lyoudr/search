@@ -1,0 +1,160 @@
+病例二：急性骨髓性白血病 Case ID：HEM-ONC-002 主訴 牙齦出血與疲倦 5 天
+Gum bleeding and fatigue
+現病史 一名 45 歲女性，出現容易瘀青、牙齦出血與發燒
+理學檢查可見臉色蒼白（pallor）及皮下出血點（petechiae）
+檢驗數據
+CBC：
+Hemoglobin：7.8 g/dL
+WBC：28,500 /µL
+Platelet：22,000 /µL
+Peripheral smear：可見 circulating blasts
+骨髓檢查（Bone Marrow）
+骨髓抽吸：高度細胞化（hypercellular marrow）
+Blasts：42%
+MPO（Myeloperoxidase）染色陽性
+流式細胞分析（Flow Cytometry）
+CD34(+), CD33(+), CD13(+), CD117(+)
+分子檢測
+NGS：FLT3-ITD mutation positive
+NPM1 mutation negative
+診斷
+Acute Myeloid Leukemia (AML), FLT3-ITD positive
+治療計畫
+Induction chemotherapy（7+3 regimen）
+合併 FLT3 inhibitor
+紅血球與血小板輸注
+抗感染預防治療
+
+🩸 病例三：多發性骨髓瘤
+
+Case ID：HEM-ONC-003
+
+主訴
+
+下背痛與全身無力 2 個月
+
+Back pain and generalized weakness
+
+現病史
+
+一名 68 歲男性，持續骨痛與疲倦
+
+伴隨便秘、尿量減少
+
+檢驗數據
+
+Hemoglobin：9.1 g/dL
+
+Serum calcium：上升（hypercalcemia）
+
+Creatinine：上升
+
+Serum protein electrophoresis：出現 M-spike
+
+Serum free light chain ratio 異常
+
+骨髓檢查
+
+Plasma cells：45%
+
+CD138(+), CD38(+)
+
+細胞遺傳
+
+FISH：del(17p)
+
+影像學
+
+Whole body MRI：多處溶骨性病灶（lytic lesions）
+
+診斷
+
+Multiple Myeloma, high-risk cytogenetics
+
+治療計畫
+
+Bortezomib + Lenalidomide + Dexamethasone
+
+評估自體造血幹細胞移植（Autologous HSCT）
+
+Bisphosphonate 治療
+
+🩸 病例四：慢性骨髓性白血病
+
+Case ID：HEM-ONC-004
+
+主訴
+
+健康檢查發現白血球過高
+
+Incidental leukocytosis
+
+現病史
+
+一名 38 歲男性，無明顯不適
+
+輕度脾臟腫大（splenomegaly）
+
+檢驗數據
+
+WBC：85,000 /µL
+
+Peripheral smear：left shift（myelocytes、metamyelocytes）
+
+骨髓
+
+高度細胞化，骨髓系增生
+
+分子檢測
+
+t(9;22)
+
+BCR-ABL1 positive（PCR）
+
+診斷
+
+Chronic Myeloid Leukemia (CML), chronic phase
+
+治療計畫
+
+Imatinib 治療
+
+追蹤 BCR-ABL1 transcript level
+
+評估分子反應
+
+🩸 病例五：霍奇金淋巴瘤
+
+Case ID：HEM-ONC-005
+
+主訴
+
+無痛性頸部腫塊
+
+Painless neck mass
+
+現病史
+
+一名 29 歲女性，左側頸部淋巴結腫大
+
+間歇性發燒與夜間盜汗
+
+病理
+
+淋巴結切片可見 Reed–Sternberg cells
+
+診斷為 Nodular Sclerosis Hodgkin Lymphoma
+
+影像
+
+PET-CT：頸部與縱膈淋巴結侵犯
+
+分期
+
+Stage IIA Hodgkin Lymphoma
+
+治療計畫
+
+ABVD 化學治療
+
+視情況合併放射治療

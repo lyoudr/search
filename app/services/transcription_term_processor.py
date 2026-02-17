@@ -27,14 +27,14 @@ class TranscriptionTermProcessor:
         self,
         db: Session,
         transcription_id: int,
-        extraction_model: str = "gpt-4o"
+        extraction_model: str = "gpt-5.2"
     ):
         """
         Extract medical terms from a transcription using LLM and store them as vectors.
         
         :param db: Database session
         :param transcription_id: Transcription ID to process
-        :param extraction_model: LLM model to use for term extraction (default: "gpt-4o")
+        :param extraction_model: LLM model to use for term extraction (default: "gpt-5.2")
         """
         # Get transcription
         transcription = transcription_repository.get_transcription_by_id(db, transcription_id)
@@ -68,14 +68,14 @@ class TranscriptionTermProcessor:
         self,
         db: Session,
         limit: Optional[int] = None,
-        extraction_model: str = "gpt-4o"
+        extraction_model: str = "gpt-5.2"
     ):
         """
         Process all transcriptions to extract and store medical terms.
         
         :param db: Database session
         :param limit: Optional limit on number of transcriptions to process
-        :param extraction_model: LLM model to use for term extraction (default: "gpt-4o")
+        :param extraction_model: LLM model to use for term extraction (default: "gpt-5.2")
         """
         transcriptions = transcription_repository.get_all_transcriptions(db)
         

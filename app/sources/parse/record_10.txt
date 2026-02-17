@@ -1,0 +1,14 @@
+病例一：瀰漫性大 B 細胞淋巴瘤 Case ID：HEM-ONC-001 主訴（Chief Complaint）右側頸部淋巴結逐漸腫大 1 個月 Progressive right cervical lymphadenopathy 現病史（Present Illness）一名 62 歲男性，近一個月發現右側頸部出現逐漸增大的腫塊 伴隨 夜間盜汗（night sweats）、體重減輕（weight loss）、疲倦（fatigue）理學檢查
+
+
+
+發現右側頸部一顆約 3.5 公分、質地堅硬、無壓痛之淋巴結 檢驗數據（Laboratory Findings）CBC（Complete Blood Count）Hemoglobin：10.2 g/dL（貧血，anemia）WBC：7,800 /µL Platelet：165,000 /µL LDH（Lactate Dehydrogenase）：上升 Beta-2 microglobulin：上升 影像學（Imaging）PET-CT 
+
+
+
+顯示右側頸部及縱膈淋巴結有明顯 FDG uptake 病理與骨髓（Pathology / Bone Marrow）淋巴結切片顯示：Diffuse Large B-cell Lymphoma (DLBCL) 免疫表現型（Immunophenotype）：CD20(+), CD19(+), CD10(-), BCL6(+) 骨髓切片未見侵犯 細胞遺傳 / 分子（Cytogenetics / Molecular）FISH：未檢出 MYC rearrangement
+
+
+
+
+NGS panel：無 TP53 mutation 診斷（Assessment）第三期 Diffuse Large B-cell Lymphoma 治療計畫（Plan）R-CHOP 化學治療（Rituximab + CHOP）追蹤中期 PET-CT 評估治療反應 支持性治療與感染預防

@@ -11,12 +11,12 @@ from app.services.model_manager import model_manager
 class MedicalTermExtractor:
     """Service for extracting medical terms from transcriptions using LLM"""
     
-    def extract_terms(self, text: str, model_name: str = "gpt-4o") -> List[str]:
+    def extract_terms(self, text: str, model_name: str = "gpt-5.2") -> List[str]:
         """
         Extract medical terms from text using LLM.
         
         :param text: Transcription text
-        :param model_name: LLM model to use for extraction (default: "gpt-4o")
+        :param model_name: LLM model to use for extraction (default: "gpt-5.2")
         :return: List of extracted medical terms
         """
         prompt = (
@@ -61,7 +61,7 @@ class MedicalTermExtractor:
         except Exception as e:
             raise ValueError(f"Failed to extract medical terms with LLM: {e}")
     
-    def extract_unique_terms(self, texts: List[str], model_name: str = "gpt-4o") -> Set[str]:
+    def extract_unique_terms(self, texts: List[str], model_name: str = "gpt-5.2") -> Set[str]:
         """
         Extract unique medical terms from multiple texts.
         

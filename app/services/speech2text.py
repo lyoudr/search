@@ -30,7 +30,7 @@ def whisper_to_text(
     db: Session,
     input_dir: str,
     engine: str = "whisper-1",
-    extraction_model: str = "gpt-4o"
+    extraction_model: str = "gpt-5.2"
 ):
     """
     Converts all audio files in the input directory to text and creates AudioFile and Transcription records.
@@ -39,7 +39,7 @@ def whisper_to_text(
     :param db: Database session
     :param input_dir: Input directory containing audio files
     :param engine: Whisper engine to use
-    :param extraction_model: LLM model to use for term extraction (default: "gpt-4o")
+    :param extraction_model: LLM model to use for term extraction (default: "gpt-5.2")
     """
     term_processor = TranscriptionTermProcessor()
     

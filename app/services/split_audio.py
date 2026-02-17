@@ -9,20 +9,22 @@ from pydub import AudioSegment, effects
 # output_dir = f"splited/{speaker}"
 
 def read_wave(path):
+    # .set_channels(1): converts it to mono (1 channel)
+    # .set_frame_rate(16000): sets the sample rate to 16000 Hz
     audio = AudioSegment.from_wav(path).set_channels(1).set_frame_rate(16000)
-    # Normalize volume
     audio = effects.normalize(audio)
-    raw_audio = audio.raw_data
+    raw_audio = audio.raw_data # extracts the raw PCM bytes
     return raw_audio, 16000
 
 def frame_generator(frame_duration_ms, audio, sample_rate):
     n = int(sample_rate * frame_duration_ms / 1000) * 2  # 16-bit audio
     for i in range(0, len(audio), n):
-        yield audio[i:i + n]
+        yield audio[i:i + n] # yield returns one frame at a time -> generator
 
+# Extracts only the parts of audio that contain speech:
 def vad_collector(audio, sample_rate, aggressiveness=2):
-    vad = webrtcvad.Vad(aggressiveness)
-    frames = list(frame_generator(10, audio, sample_rate))
+    vad = webrtcvad.Vad(aggressiveness) # creates a VAD object
+    frames = list(frame_generator(10, audio, sample_rate)) # splits audio into 10ms frames
     voiced_frames = []
     frame_size = int(sample_rate * 10 / 1000) * 2
     for f in frames:
@@ -32,6 +34,7 @@ def vad_collector(audio, sample_rate, aggressiveness=2):
             voiced_frames.append(f)
     return voiced_frames
 
+# saves the speech audio into chunks (files)
 def save_chunks(audio_data, sample_rate, out_dir, base_name):
     chunk_length = 30 * 16000 * 2  # 30 seconds of 16kHz, 16-bit audio
     os.makedirs(out_dir, exist_ok=True)

@@ -55,7 +55,13 @@ langchain-openai==1.1.7
 docx==0.2.4
 python-docx==1.2.0
 mammoth==1.11.0
+openpyxl==3.1.5
 pinecone==8.0.0
 pinecone-client==6.0.0
 pinecone-plugin-assistant==3.0.1
 pinecone-plugin-interface==0.0.7
+
+moviepy==2.2.1
+# Google
+google-cloud-speech==2.36.0
+googleapis-common-protos==1.72.0

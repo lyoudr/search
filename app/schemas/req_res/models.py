@@ -15,7 +15,7 @@ class ModelRegisterRequest(BaseModel):
     
     # For API models (OpenAI, Anthropic)
     api_model_name: Optional[str] = Field(
-        None, description="API model name (e.g., 'gpt-4o' for OpenAI)"
+        None, description="API model name (e.g., 'gpt-5' for OpenAI)"
     )
     
     # For Hugging Face models

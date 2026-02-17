@@ -2,6 +2,7 @@
 Model configuration file for different LLM models.
 Add new models here to make them available in the system.
 """
+
 from typing import Dict, Optional, Literal
 from dataclasses import dataclass
 
@@ -12,19 +13,22 @@ ModelType = Literal["api", "local"]
 @dataclass
 class ModelConfig:
     """Configuration for an LLM model"""
-    name: str  # Model identifier (e.g., "gpt-4o", "qwen2.5-7b-instruct")
+
+    name: str  # Model identifier (e.g., "gpt-5", "qwen2.5-7b-instruct")
     display_name: str  # Human-readable name
     provider: ModelProvider  # openai, huggingface, anthropic, local
     model_type: ModelType  # api (cloud) or local (downloaded)
-    
+
     # For API models (OpenAI, Anthropic)
-    api_model_name: Optional[str] = None  # API model name (e.g., "gpt-4o" for OpenAI)
-    
+    api_model_name: Optional[str] = None  # API model name (e.g., "gpt-5" for OpenAI)
+
     # For Hugging Face models
-    hf_model_id: Optional[str] = None  # Hugging Face model ID (e.g., "Qwen/Qwen2.5-7B-Instruct")
+    hf_model_id: Optional[str] = (
+        None  # Hugging Face model ID (e.g., "Qwen/Qwen2.5-7B-Instruct")
+    )
     hf_revision: Optional[str] = None  # Specific revision/branch
     hf_trust_remote_code: bool = False  # Trust remote code from HF
-    
+
     # Model metadata
     size: Optional[str] = None  # e.g., "7B", "8B", "1.5B"
     quantization: Optional[str] = None  # e.g., "4bit", "8bit", "fp16", "fp32"
@@ -50,21 +54,21 @@ class ModelConfig:
     # ~ Max context length (or context window)
     max_context_length is the maximum number of tokens the model can “look at” in one input.
     """
-    
+
     # Model capabilities
     supports_chat: bool = True  # Supports chat format
     supports_completion: bool = True  # Supports completion format
-    
+
     # Download/loading settings
     device_map: str = "auto"  # Device mapping for local models
     torch_dtype: Optional[str] = None  # e.g., "float16", "bfloat16", "float32"
     load_in_4bit: bool = False  # Use 4-bit quantization
     load_in_8bit: bool = False  # Use 8-bit quantization
-    
+
     # API settings
     temperature: float = 0.3  # Default temperature
     max_tokens: Optional[int] = None  # Max tokens for generation
-    
+
     # Description
     description: Optional[str] = None
 
@@ -75,17 +79,16 @@ class ModelConfig:
 
 MODEL_REGISTRY: Dict[str, ModelConfig] = {
     # ========== OpenAI Models ==========
-    "gpt-4o": ModelConfig(
-        name="gpt-4o",
-        display_name="GPT-4o",
+    "gpt-5.2": ModelConfig(
+        name="gpt-5.2",
+        display_name="GPT-5.2",
         provider="openai",
         model_type="api",
-        api_model_name="gpt-4o",
+        api_model_name="gpt-5.2",
         size="Unknown",
         max_context_length=128000,
-        description="OpenAI's latest GPT-4 optimized model"
+        description="OpenAI's latest GPT-5 model",
     ),
-    
     "gpt-4": ModelConfig(
         name="gpt-4",
         display_name="GPT-4",
@@ -94,9 +97,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         api_model_name="gpt-4",
         size="Unknown",
         max_context_length=8192,
-        description="OpenAI GPT-4"
+        description="OpenAI GPT-4",
     ),
-    
     "gpt-4-turbo": ModelConfig(
         name="gpt-4-turbo",
         display_name="GPT-4 Turbo",
@@ -105,9 +107,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         api_model_name="gpt-4-turbo",
         size="Unknown",
         max_context_length=128000,
-        description="OpenAI GPT-4 Turbo"
+        description="OpenAI GPT-4 Turbo",
     ),
-    
     "gpt-3.5-turbo": ModelConfig(
         name="gpt-3.5-turbo",
         display_name="GPT-3.5 Turbo",
@@ -116,14 +117,13 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         api_model_name="gpt-3.5-turbo",
         size="Unknown",
         max_context_length=16385,
-        description="OpenAI GPT-3.5 Turbo"
+        description="OpenAI GPT-3.5 Turbo",
     ),
-    
     # ========== Qwen Models (Hugging Face) ==========
     "qwen2.5-7b-instruct": ModelConfig(
         name="qwen2.5-7b-instruct",
         display_name="Qwen2.5 7B Instruct (Together)",
-        provider="openai",          # using OpenAI-compatible client
+        provider="openai",  # using OpenAI-compatible client
         model_type="api",
         api_model_name="Qwen/Qwen2.5-7B-Instruct:together",
         max_context_length=8192,
@@ -133,10 +133,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         load_in_4bit=False,
         device_map=None,
         torch_dtype=None,
-
-        description="Qwen2.5 7B via Together.ai API"
+        description="Qwen2.5 7B via Together.ai API",
     ),
-    
     "qwen2.5-14b-instruct": ModelConfig(
         name="qwen2.5-14b-instruct",
         display_name="Qwen2.5 14B Instruct",
@@ -148,9 +146,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         max_context_length=32768,
         torch_dtype="float16",
         device_map="auto",
-        description="Qwen2.5 14B Instruct model"
+        description="Qwen2.5 14B Instruct model",
     ),
-    
     "qwen2.5-32b-instruct": ModelConfig(
         name="qwen2.5-32b-instruct",
         display_name="Qwen2.5 32B Instruct",
@@ -162,9 +159,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         max_context_length=32768,
         torch_dtype="float16",
         device_map="auto",
-        description="Qwen2.5 32B Instruct model"
+        description="Qwen2.5 32B Instruct model",
     ),
-    
     "qwen2.5-7b-instruct-4bit": ModelConfig(
         name="qwen2.5-7b-instruct-4bit",
         display_name="Qwen2.5 7B Instruct (4-bit)",
@@ -176,9 +172,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         max_context_length=32768,
         load_in_4bit=True,
         device_map="auto",
-        description="Qwen2.5 7B Instruct with 4-bit quantization"
+        description="Qwen2.5 7B Instruct with 4-bit quantization",
     ),
-    
     "qwen2-7b-instruct": ModelConfig(
         name="qwen2-7b-instruct",
         display_name="Qwen2 7B Instruct",
@@ -190,15 +185,14 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         max_context_length=32768,
         torch_dtype="float16",
         device_map="auto",
-        description="Qwen2 7B Instruct model"
+        description="Qwen2 7B Instruct model",
     ),
-    
     # ========== LLaMA Models (Hugging Face) ==========
     "llama-3-8b-instruct": ModelConfig(
         name="llama-3-8b-instruct",
         display_name="LLaMA 3 8B Instruct",
         provider="openai",
-        model_type="api",          # using OpenAI-compatible client
+        model_type="api",  # using OpenAI-compatible client
         api_model_name="meta-llama/Meta-Llama-3-8B-Instruct",
         max_context_length=8192,
         temperature=0.3,
@@ -207,10 +201,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         load_in_4bit=False,
         device_map=None,
         torch_dtype=None,
-
-        description="Qwen2.5 7B via Together.ai API"
+        description="Qwen2.5 7B via Together.ai API",
     ),
-    
     "llama-3-70b-instruct": ModelConfig(
         name="llama-3-70b-instruct",
         display_name="LLaMA 3 70B Instruct",
@@ -222,9 +214,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         max_context_length=8192,
         torch_dtype="float16",
         device_map="auto",
-        description="Meta LLaMA 3 70B Instruct model"
+        description="Meta LLaMA 3 70B Instruct model",
     ),
-    
     "llama-3-8b-instruct-4bit": ModelConfig(
         name="llama-3-8b-instruct-4bit",
         display_name="LLaMA 3 8B Instruct (4-bit)",
@@ -236,9 +227,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         max_context_length=8192,
         load_in_4bit=True,
         device_map="auto",
-        description="Meta LLaMA 3 8B Instruct with 4-bit quantization"
+        description="Meta LLaMA 3 8B Instruct with 4-bit quantization",
     ),
-    
     # ========== Legacy Models (for backward compatibility) ==========
     "qwen2": ModelConfig(
         name="qwen2",
@@ -251,9 +241,8 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         max_context_length=32768,
         torch_dtype="float16",
         device_map="auto",
-        description="Legacy Qwen2 model name"
+        description="Legacy Qwen2 model name",
     ),
-    
     "llama3": ModelConfig(
         name="llama3",
         display_name="LLaMA 3 8B (Legacy)",
@@ -265,7 +254,7 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         max_context_length=8192,
         torch_dtype="float16",
         device_map="auto",
-        description="Legacy LLaMA 3 model name"
+        description="Legacy LLaMA 3 model name",
     ),
 }
 
@@ -287,6 +276,8 @@ def register_model(config: ModelConfig) -> None:
 
 def get_models_by_provider(provider: ModelProvider) -> Dict[str, ModelConfig]:
     """Get all models for a specific provider"""
-    return {name: config for name, config in MODEL_REGISTRY.items() 
-            if config.provider == provider}
-
+    return {
+        name: config
+        for name, config in MODEL_REGISTRY.items()
+        if config.provider == provider
+    }

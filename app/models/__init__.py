@@ -45,5 +45,5 @@ __all__ = [
     "AudioFile",
     "Transcription",
     "LLMOutput",
-    "Evaluation"
+    "Evaluation",
 ]

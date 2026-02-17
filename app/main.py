@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 
 from app.routes import audio, models, generate, documents
-
 app = FastAPI(
     title="Audio AI",
 )
