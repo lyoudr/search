@@ -16,6 +16,9 @@ def create_statistics(
     avg_llm_rag_wer: Optional[float] = None,
     avg_llm_hematology_wer: Optional[float] = None,
     avg_llm_agent_wer: Optional[float] = None,
+    avg_google_wer: Optional[float] = None,
+    avg_aws_wer: Optional[float] = None,
+    avg_dr_ai_wer: Optional[float] = None,
     count_whisper_wer: int = 0,
     count_llm_wer: int = 0,
     count_llm_rag_wer: int = 0,
@@ -30,6 +33,9 @@ def create_statistics(
         avg_llm_rag_wer=avg_llm_rag_wer,
         avg_llm_hematology_wer=avg_llm_hematology_wer,
         avg_llm_agent_wer=avg_llm_agent_wer,
+        avg_google_wer=avg_google_wer,
+        avg_aws_wer=avg_aws_wer,
+        avg_dr_ai_wer=avg_dr_ai_wer,
         count_whisper_wer=count_whisper_wer,
         count_llm_wer=count_llm_wer,
         count_llm_rag_wer=count_llm_rag_wer,
@@ -51,6 +57,9 @@ def update_statistics(
     avg_llm_rag_wer: Optional[float] = None,
     avg_llm_hematology_wer: Optional[float] = None,
     avg_llm_agent_wer: Optional[float] = None,
+    avg_google_wer: Optional[float] = None,
+    avg_aws_wer: Optional[float] = None,
+    avg_dr_ai_wer: Optional[float] = None,
     count_whisper_wer: Optional[int] = None,
     count_llm_wer: Optional[int] = None,
     count_llm_rag_wer: Optional[int] = None,
@@ -72,6 +81,12 @@ def update_statistics(
             statistics.avg_llm_hematology_wer = avg_llm_hematology_wer
         if avg_llm_agent_wer is not None:
             statistics.avg_llm_agent_wer = avg_llm_agent_wer
+        if avg_google_wer is not None:
+            statistics.avg_google_wer = avg_google_wer
+        if avg_aws_wer is not None:
+            statistics.avg_aws_wer = avg_aws_wer
+        if avg_dr_ai_wer is not None:
+            statistics.avg_dr_ai_wer = avg_dr_ai_wer
         if count_whisper_wer is not None:
             statistics.count_whisper_wer = count_whisper_wer
         if count_llm_wer is not None:

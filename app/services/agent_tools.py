@@ -9,6 +9,16 @@ from app.services.model_manager import model_manager
 from app.services.medical_document_retriever import MedicalDocumentRetriever
 from app.services.hematology_retriever import HematologyRetriever
 
+BASE_CORRECTION_PROMPT = (
+    "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確。\n\n"
+    "規則：\n"
+    "1. 不補上任何標點符號\n"
+    "2. 只修正詞彙錯誤\n"
+    "3. 不新增或刪除內容\n"
+    "4. 不輸出任何解釋\n\n"
+    "請只輸出修正後的完整文字內容。\n\n"
+)
+
 
 class AgentTool:
     """Base class for agent tools"""
@@ -32,7 +42,7 @@ class DirectLLMTool(AgentTool):
         )
 
     def execute(
-        self, whisper_text: str, model_name: str = "gpt-4", **kwargs
+        self, whisper_text: str, model_name: str = "gpt-5.2", **kwargs
     ) -> Dict[str, Any]:
         """
         Execute direct LLM correction.
@@ -41,13 +51,7 @@ class DirectLLMTool(AgentTool):
         :param model_name: LLM model to use
         :return: Dictionary with 'corrected_text' and 'method'
         """
-        base_prompt = (
-            "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確：\n"
-            "1. 不補上標點符號\n"
-            "2. 只修正詞彙錯誤\n\n"
-            f"原文：{whisper_text}\n"
-            f"修正："
-        )
+        base_prompt = f"{BASE_CORRECTION_PROMPT}原文：\n[{whisper_text}]"
 
         try:
             corrected_text = model_manager.generate_text(
@@ -87,7 +91,7 @@ class MedicalDocumentRAGTool(AgentTool):
         self,
         whisper_text: str,
         transcription_id: int,
-        model_name: str = "gpt-4",
+        model_name: str = "gpt-5.2",
         top_k_queries: int = 3,
         top_k_documents: int = 5,
         **kwargs,
@@ -102,11 +106,7 @@ class MedicalDocumentRAGTool(AgentTool):
         :param top_k_documents: Number of documents per term
         :return: Dictionary with 'corrected_text' and 'method'
         """
-        base_prompt = (
-            "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確：\n"
-            "1. 不補上標點符號\n"
-            "2. 只修正詞彙錯誤\n\n"
-        )
+        base_prompt = BASE_CORRECTION_PROMPT
 
         try:
             # Retrieve relevant medical documents
@@ -124,12 +124,11 @@ class MedicalDocumentRAGTool(AgentTool):
                 prompt = (
                     f"{base_prompt}"
                     f"以下是一些醫療文檔作為參考：\n{context}\n\n"
-                    f"原文：{whisper_text}\n"
-                    f"修正："
+                    f"原文：\n[{whisper_text}]"
                 )
             else:
                 # No documents found, fallback to direct LLM
-                prompt = f"{base_prompt}原文：{whisper_text}\n修正："
+                prompt = f"{base_prompt}原文：\n[{whisper_text}]"
 
             corrected_text = model_manager.generate_text(
                 model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
@@ -166,7 +165,7 @@ class HematologyRAGTool(AgentTool):
         self,
         whisper_text: str,
         transcription_id: int,
-        model_name: str = "gpt-4",
+        model_name: str = "gpt-5.2",
         top_k_queries: int = 2,
         top_k: int = 5,
         **kwargs,
@@ -181,11 +180,7 @@ class HematologyRAGTool(AgentTool):
         :param top_k: Number of hematology entries per term
         :return: Dictionary with 'corrected_text' and 'method'
         """
-        base_prompt = (
-            "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確：\n"
-            "1. 不補上標點符號\n"
-            "2. 只修正詞彙錯誤\n\n"
-        )
+        base_prompt = BASE_CORRECTION_PROMPT
 
         try:
             # Retrieve relevant hematology dictionary entries
@@ -206,12 +201,11 @@ class HematologyRAGTool(AgentTool):
                 prompt = (
                     f"{base_prompt}"
                     f"以下是一些血液學醫學詞典範例作為參考：\n{context}\n\n"
-                    f"原文：{whisper_text}\n"
-                    f"修正："
+                    f"原文：\n[{whisper_text}]"
                 )
             else:
                 # No entries found, fallback to direct LLM
-                prompt = f"{base_prompt}原文：{whisper_text}\n修正："
+                prompt = f"{base_prompt}原文：\n[{whisper_text}]"
 
             corrected_text = model_manager.generate_text(
                 model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
@@ -250,7 +244,7 @@ class HematologyVocabularyTool(AgentTool):
         self,
         whisper_text: str,
         transcription_id: int,
-        model_name: str = "gpt-4",
+        model_name: str = "gpt-5.2",
         top_k: int = 10,
         **kwargs,
     ) -> Dict[str, Any]:
@@ -263,11 +257,7 @@ class HematologyVocabularyTool(AgentTool):
         :param top_k: Number of vocabulary terms to retrieve from hematology-vocab index
         :return: Dictionary with 'corrected_text' and 'method'
         """
-        base_prompt = (
-            "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確：\n"
-            "1. 不補上標點符號\n"
-            "2. 只修正詞彙錯誤\n\n"
-        )
+        base_prompt = BASE_CORRECTION_PROMPT
 
         try:
             # Create embedding for the transcription text
@@ -297,12 +287,11 @@ class HematologyVocabularyTool(AgentTool):
                 prompt = (
                     f"{base_prompt}"
                     f"以下是一些血液學醫學詞彙作為參考：\n{context}\n\n"
-                    f"原文：{whisper_text}\n"
-                    f"修正："
+                    f"原文：\n[{whisper_text}]"
                 )
             else:
                 # No vocabulary terms found, fallback to direct LLM
-                prompt = f"{base_prompt}原文：{whisper_text}\n修正："
+                prompt = f"{base_prompt}原文：\n[{whisper_text}]"
 
             corrected_text = model_manager.generate_text(
                 model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
@@ -343,7 +332,7 @@ class CombinedRAGTool(AgentTool):
         self,
         whisper_text: str,
         transcription_id: int,
-        model_name: str = "gpt-4",
+        model_name: str = "gpt-5.2",
         top_k_queries: int = 2,
         top_k_documents: int = 3,
         top_k_hematology: int = 3,
@@ -362,11 +351,7 @@ class CombinedRAGTool(AgentTool):
         :param top_k_vocab: Number of hematology vocabulary terms to retrieve
         :return: Dictionary with 'corrected_text' and 'method'
         """
-        base_prompt = (
-            "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確：\n"
-            "1. 不補上標點符號\n"
-            "2. 只修正詞彙錯誤\n\n"
-        )
+        base_prompt = BASE_CORRECTION_PROMPT
 
         try:
             # Retrieve from all three sources
@@ -436,12 +421,11 @@ class CombinedRAGTool(AgentTool):
                 prompt = (
                     f"{base_prompt}"
                     f"以下是一些醫療參考資料：\n{context}\n\n"
-                    f"原文：{whisper_text}\n"
-                    f"修正："
+                    f"原文：\n[{whisper_text}]"
                 )
             else:
                 # No context found, fallback to direct LLM
-                prompt = f"{base_prompt}原文：{whisper_text}\n修正："
+                prompt = f"{base_prompt}原文：\n[{whisper_text}]"
 
             corrected_text = model_manager.generate_text(
                 model_name=model_name, prompt=prompt, max_length=512, temperature=0.1

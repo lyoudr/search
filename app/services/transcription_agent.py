@@ -42,7 +42,7 @@ class TranscriptionAgent:
         self,
         whisper_text: str,
         transcription_id: int,
-        model_name: str = "gpt-4",
+        model_name: str = "gpt-5.2",
         initial_strategy: Optional[str] = None,
         **kwargs,
     ) -> Dict[str, Any]:
@@ -69,7 +69,7 @@ class TranscriptionAgent:
         self,
         whisper_text: str,
         transcription_id: int,
-        model_name: str = "gpt-4",
+        model_name: str = "gpt-5.2",
         initial_strategy: Optional[str] = None,
         **kwargs,
     ) -> Dict[str, Any]:

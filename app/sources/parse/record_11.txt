@@ -1,0 +1,5 @@
+病例二：急性骨髓性白血病 Case ID：HEM-ONC-002 主訴 牙齦出血與疲倦 5 天 Gum bleeding and fatigue 現病史一名 45 歲女性，出現容易瘀青、牙齦出血與發燒理學檢查可見臉色蒼白（pallor）及皮下出血點（petechiae）檢驗數據CBC：Hemoglobin：7.8 g/dL
+
+WBC：28,500 /µL Platelet：22,000 /µL Peripheral smear：可見 circulating blasts 骨髓檢查（Bone Marrow）骨髓抽吸：高度細胞化（hypercellular marrow）Blasts：42% MPO（Myeloperoxidase）染色陽性流式細胞分析（Flow Cytometry）CD34(+), CD33(+), CD13(+) 
+
+CD117(+)分子檢測 NGS：FLT3-ITD mutation positive NPM1 mutation negative 診斷 Acute Myeloid Leukemia (AML), FLT3-ITD positive 治療計畫 Induction chemotherapy（7+3 regimen）合併 FLT3 inhibitor紅血球與血小板輸注抗感染預防治療

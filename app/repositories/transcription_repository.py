@@ -31,6 +31,32 @@ def get_all_transcriptions(db: Session) -> List[Transcription]:
     return db.query(Transcription).all()
 
 
+def export_transcriptions_text(db: Session, audio_file_id: Optional[int] = None):
+    """
+    Export raw text columns needed for XLSX:
+    1. Whisper transcribed text (Transcription.text)
+    2. Google transcribed text (LLMOutput.text_with_google)
+    3. AWS transcribed text (LLMOutput.text_with_aws)
+    4. Dr_AI transcribed text (LLMOutput.text_with_dr_ai)
+    """
+    from app.models.analyze import LLMOutput  # local import to avoid circulars in some contexts
+
+    query = (
+        db.query(
+            Transcription.text.label("whisper_text"),
+            LLMOutput.text_with_google.label("google_text"),
+            LLMOutput.text_with_aws.label("aws_text"),
+            LLMOutput.text_with_dr_ai.label("dr_ai_text"),
+        )
+        .join(LLMOutput, LLMOutput.transcription_id == Transcription.id)
+    )
+
+    if audio_file_id is not None:
+        query = query.filter(Transcription.audio_file_id == audio_file_id)
+
+    return query.all()
+
+
 def get_transcriptions_with_ground_truth(db: Session, limit: int = 10) -> List[dict]:
     """Get transcriptions with ground truth for CoT examples"""
     from app.models.analyze import LLMOutput, Evaluation

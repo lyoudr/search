@@ -31,6 +31,9 @@ def calculate_total_wer_statistics(db: Session) -> Dict[str, Any]:
         "avg_llm_rag_wer": None,
         "avg_llm_hematology_wer": None,
         "avg_llm_agent_wer": None,
+        "avg_google_wer": None,
+        "avg_aws_wer": None,
+        "avg_dr_ai_wer": None,
         "count_whisper_wer": 0,
         "count_llm_wer": 0,
         "count_llm_rag_wer": 0,
@@ -111,6 +114,45 @@ def calculate_total_wer_statistics(db: Session) -> Dict[str, Any]:
     if llm_agent_result and llm_agent_result.avg is not None:
         stats["avg_llm_agent_wer"] = round(float(llm_agent_result.avg), 4)
         stats["count_llm_agent_wer"] = llm_agent_result.count
+
+    # Google WER
+    google_result = (
+        db.query(
+            func.avg(Evaluation.google_wer).label("avg"),
+            func.count(Evaluation.google_wer).label("count"),
+        )
+        .filter(Evaluation.google_wer.isnot(None))
+        .first()
+    )
+
+    if google_result and google_result.avg is not None:
+        stats["avg_google_wer"] = round(float(google_result.avg), 4)
+
+    # AWS WER
+    aws_result = (
+        db.query(
+            func.avg(Evaluation.aws_wer).label("avg"),
+            func.count(Evaluation.aws_wer).label("count"),
+        )
+        .filter(Evaluation.aws_wer.isnot(None))
+        .first()
+    )
+
+    if aws_result and aws_result.avg is not None:
+        stats["avg_aws_wer"] = round(float(aws_result.avg), 4)
+
+    # Dr_AI WER
+    dr_ai_result = (
+        db.query(
+            func.avg(Evaluation.dr_ai_wer).label("avg"),
+            func.count(Evaluation.dr_ai_wer).label("count"),
+        )
+        .filter(Evaluation.dr_ai_wer.isnot(None))
+        .first()
+    )
+
+    if dr_ai_result and dr_ai_result.avg is not None:
+        stats["avg_dr_ai_wer"] = round(float(dr_ai_result.avg), 4)
 
     return stats
 

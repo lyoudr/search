@@ -7,9 +7,20 @@ from app.services.medical_document_retriever import MedicalDocumentRetriever
 from app.services.hematology_retriever import HematologyRetriever
 
 
+BASE_CORRECTION_PROMPT = (
+    "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確。\n\n"
+    "規則：\n"
+    "1. 不補上任何標點符號\n"
+    "2. 只修正詞彙錯誤\n"
+    "3. 不新增或刪除內容\n"
+    "4. 不輸出任何解釋\n\n"
+    "請只輸出修正後的完整文字內容。\n\n"
+)
+
+
 def correct_whisper_text(
     whisper_text: str,
-    model_name: str = "gpt-4",
+    model_name: str = "gpt-5.2",
     use_rag: bool = False,
     transcription_id: Optional[int] = None,
     top_k_queries: int = 2,
@@ -22,10 +33,10 @@ def correct_whisper_text(
     1. use_rag=False: Direct LLM correction (without RAG) - stores in 'text' field
     2. use_rag=True: LLM correction with RAG (using medical documents) - stores in 'text_with_rag' field
 
-    Supports any model registered in the model registry (GPT-4o, Qwen2.5, LLaMA 3, etc.)
+    Supports any model registered in the model registry (GPT-5, Qwen2.5, LLaMA 3, etc.)
 
     :param whisper_text: Whisper transcribed text
-    :param model_name: Model identifier from model registry (e.g., "gpt-4o", "qwen2.5-7b-instruct", "llama-3-8b-instruct")
+    :param model_name: Model identifier from model registry (e.g., "gpt-5", "qwen2.5-7b-instruct", "llama-3-8b-instruct")
     :param use_rag: Whether to use RAG (Retrieval-Augmented Generation) with medical documents
     :param transcription_id: Transcription ID (required if use_rag=True)
     :param top_k_queries: Number of queries (terms) to retrieve from query_index (only if use_rag=True)
@@ -34,11 +45,7 @@ def correct_whisper_text(
     """
 
     # Base prompt for LLM correction
-    base_prompt = (
-        "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確：\n"
-        "1. 不補上標點符號\n"
-        "2. 只修正詞彙錯誤\n\n"
-    )
+    base_prompt = BASE_CORRECTION_PROMPT
 
     # Mode 1: With RAG (use medical documents)
     if use_rag:
@@ -63,15 +70,14 @@ def correct_whisper_text(
                 prompt = (
                     f"{base_prompt}"
                     f"以下是一些醫療文檔作為參考：\n{context}\n\n"
-                    f"原文：{whisper_text}\n"
-                    f"修正："
+                    f"原文：\n[{whisper_text}]"
                 )
             else:
                 # No documents found, fallback to direct LLM
                 print(
                     f"⚠️  No documents found for transcription {transcription_id}, using direct LLM correction"
                 )
-                prompt = f"{base_prompt}原文：{whisper_text}\n修正："
+                prompt = f"{base_prompt}原文：\n[{whisper_text}]"
 
             corrected_text = model_manager.generate_text(
                 model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
@@ -81,14 +87,14 @@ def correct_whisper_text(
         except Exception as e:
             print(f"⚠️  RAG correction failed: {e}, falling back to direct LLM")
             # Fallback to direct LLM
-            prompt = f"{base_prompt}原文：{whisper_text}\n修正："
+            prompt = f"{base_prompt}原文：\n[{whisper_text}]"
             corrected_text = model_manager.generate_text(
                 model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
             )
             return corrected_text
 
     # Mode 2: Direct LLM correction (no RAG)
-    prompt = f"{base_prompt}原文：{whisper_text}\n修正："
+    prompt = f"{base_prompt}原文：\n[{whisper_text}]"
 
     try:
         corrected_text = model_manager.generate_text(
@@ -101,7 +107,7 @@ def correct_whisper_text(
 
 def batch_correct_whisper_text(
     db: Session,
-    llm_model_name: str = "gpt-4",
+    llm_model_name: str = "gpt-5.2",
     prompt_version: str = "v1",
     limit: int = 10,
     use_rag: bool = False,
@@ -116,8 +122,8 @@ def batch_correct_whisper_text(
     2. use_rag=True: LLM correction with RAG (using medical documents) - stores in 'text_with_rag' field
 
     :param db: Database session
-    :param llm_model_name: Name of the LLM model to use (default: "gpt-4")
-                          Can be any model from the registry: "gpt-4o", "qwen2.5-7b-instruct", "llama-3-8b-instruct", etc.
+    :param llm_model_name: Name of the LLM model to use (default: "gpt-5.2")
+                          Can be any model from the registry: "gpt-5", "qwen2.5-7b-instruct", "llama-3-8b-instruct", etc.
     :param prompt_version: Version of the prompt used (default: "v1")
     :param limit: Maximum number of transcriptions to process
     :param use_rag: Whether to use RAG (Retrieval-Augmented Generation) with medical documents (default: False)
@@ -205,7 +211,7 @@ def batch_correct_whisper_text(
 
 def correct_whisper_text_with_hematology(
     whisper_text: str,
-    model_name: str = "gpt-4",
+    model_name: str = "gpt-5.2",
     transcription_id: Optional[int] = None,
     top_k_queries: int = 2,
     top_k: int = 5,
@@ -231,11 +237,7 @@ def correct_whisper_text_with_hematology(
         )
 
     # Base prompt for LLM correction
-    base_prompt = (
-        "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確：\n"
-        "1. 不補上標點符號\n"
-        "2. 只修正詞彙錯誤\n\n"
-    )
+    base_prompt = BASE_CORRECTION_PROMPT
 
     try:
         # Retrieve relevant hematology dictionary entries using medical terms from query_index
@@ -258,15 +260,14 @@ def correct_whisper_text_with_hematology(
             prompt = (
                 f"{base_prompt}"
                 f"以下是一些血液學醫學詞典範例作為參考：\n{context}\n\n"
-                f"原文：{whisper_text}\n"
-                f"修正："
+                f"原文：\n[{whisper_text}]"
             )
         else:
             # No hematology entries found, fallback to direct LLM
             print(
                 f"⚠️  No hematology dictionary entries found for transcription {transcription_id}, using direct LLM correction"
             )
-            prompt = f"{base_prompt}原文：{whisper_text}\n修正："
+            prompt = f"{base_prompt}原文：\n[{whisper_text}]"
 
         corrected_text = model_manager.generate_text(
             model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
@@ -278,7 +279,7 @@ def correct_whisper_text_with_hematology(
             f"⚠️  Hematology Dictionary RAG correction failed: {e}, falling back to direct LLM"
         )
         # Fallback to direct LLM
-        prompt = f"{base_prompt}原文：{whisper_text}\n修正："
+        prompt = f"{base_prompt}原文：\n[{whisper_text}]"
         corrected_text = model_manager.generate_text(
             model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
         )
@@ -287,7 +288,7 @@ def correct_whisper_text_with_hematology(
 
 def batch_correct_whisper_text_with_hematology(
     db: Session,
-    llm_model_name: str = "gpt-4",
+    llm_model_name: str = "gpt-5.2",
     prompt_version: str = "v1",
     limit: int = 10,
     top_k_queries: int = 2,
@@ -302,7 +303,7 @@ def batch_correct_whisper_text_with_hematology(
     3. Store results in 'text_with_hematology' field.
 
     :param db: Database session
-    :param llm_model_name: Name of the LLM model to use (default: "gpt-4")
+    :param llm_model_name: Name of the LLM model to use (default: "gpt-5.2")
     :param prompt_version: Version of the prompt used (default: "v1")
     :param limit: Maximum number of transcriptions to process
     :param top_k_queries: Number of queries (terms) to retrieve from query_index
@@ -382,7 +383,7 @@ def batch_correct_whisper_text_with_hematology(
 def correct_whisper_text_with_agent(
     whisper_text: str,
     transcription_id: int,
-    model_name: str = "gpt-4",
+    model_name: str = "gpt-5.2",
     initial_strategy: Optional[str] = None,
     max_iterations: int = 3,
     **kwargs,
@@ -418,7 +419,7 @@ def correct_whisper_text_with_agent(
 
 def batch_correct_whisper_text_with_agent(
     db: Session,
-    llm_model_name: str = "gpt-4",
+    llm_model_name: str = "gpt-5.2",
     prompt_version: str = "v1",
     limit: int = 10,
     max_iterations: int = 3,
@@ -431,7 +432,7 @@ def batch_correct_whisper_text_with_agent(
     Results are stored in 'text_agent' field.
 
     :param db: Database session
-    :param llm_model_name: Name of the LLM model to use (default: "gpt-4")
+    :param llm_model_name: Name of the LLM model to use (default: "gpt-5.2")
     :param prompt_version: Version of the prompt used (default: "v1")
     :param limit: Maximum number of transcriptions to process
     :param max_iterations: Maximum number of correction attempts per transcription

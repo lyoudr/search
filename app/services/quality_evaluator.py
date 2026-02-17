@@ -26,7 +26,7 @@ class QualityEvaluator:
         corrected_text: str,
         method: str,
         metadata: Optional[Dict[str, Any]] = None,
-        model_name: str = "gpt-4o"
+        model_name: str = "gpt-5.2"
     ) -> Dict[str, Any]:
         """
         Evaluate the quality of a correction using LLM to detect typos.
@@ -35,7 +35,7 @@ class QualityEvaluator:
         :param corrected_text: Corrected text to evaluate
         :param method: Method used for correction
         :param metadata: Additional metadata (e.g., documents retrieved)
-        :param model_name: LLM model to use for evaluation (default: "gpt-4o")
+        :param model_name: LLM model to use for evaluation (default: "gpt-5.2")
         :return: Quality score and assessment
         """
         if not corrected_text:
@@ -135,7 +135,7 @@ class QualityEvaluator:
     def _evaluate_with_llm(
         self,
         corrected_text: str,
-        model_name: str = "gpt-4o"
+        model_name: str = "gpt-5.2"
     ) -> Dict[str, Any]:
         """
         Use LLM to evaluate correction quality by detecting typos in corrected_text.

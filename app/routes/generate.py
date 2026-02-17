@@ -19,7 +19,7 @@ def generate_text(model_name: str, request: ModelGenerateRequest):
     **Request Body:**
     ```json
     {
-        "prompt": "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句：\n原文：...",
+        "prompt": "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確。\n\n規則：\n1. 不補上任何標點符號\n2. 只修正詞彙錯誤\n3. 不新增或刪除內容\n4. 不輸出任何解釋\n\n請只輸出修正後的完整文字內容。\n\n原文：\n[...]",
         "max_length": 512,
         "temperature": 0.3,
         "max_tokens": 256
