@@ -7,7 +7,7 @@ from app.repositories import (
     audio_file_repository,
     transcription_repository
 )
-from app.services.transcription_term_processor import TranscriptionTermProcessor
+from app.services.transcription_agent import TranscriptionTermProcessor
 
 client = OpenAI()
 cc = OpenCC('s2t')

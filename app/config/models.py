@@ -89,12 +89,12 @@ MODEL_REGISTRY: Dict[str, ModelConfig] = {
         max_context_length=128000,
         description="OpenAI's latest GPT-5 model",
     ),
-    "gpt-4": ModelConfig(
-        name="gpt-4",
+    "gpt-4o": ModelConfig(
+        name="gpt-4o",
         display_name="GPT-4",
         provider="openai",
         model_type="api",
-        api_model_name="gpt-4",
+        api_model_name="gpt-4o",
         size="Unknown",
         max_context_length=8192,
         description="OpenAI GPT-4",

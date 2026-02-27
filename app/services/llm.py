@@ -2,19 +2,13 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.repositories import transcription_repository, llm_output_repository
+from app.services.medical_documents_services import MedicalDocumentRetriever
+from app.services.hematology_services import HematologyRetriever
 from app.services.model_manager import model_manager
-from app.services.medical_document_retriever import MedicalDocumentRetriever
-from app.services.hematology_retriever import HematologyRetriever
-
-
-BASE_CORRECTION_PROMPT = (
-    "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確。\n\n"
-    "規則：\n"
-    "1. 不補上任何標點符號\n"
-    "2. 只修正詞彙錯誤\n"
-    "3. 不新增或刪除內容\n"
-    "4. 不輸出任何解釋\n\n"
-    "請只輸出修正後的完整文字內容。\n\n"
+from app.services.correction_core import (
+    build_correction_prompt,
+    build_numbered_lines,
+    generate_correction_text,
 )
 
 
@@ -44,9 +38,6 @@ def correct_whisper_text(
     :return: 修正過後的文字
     """
 
-    # Base prompt for LLM correction
-    base_prompt = BASE_CORRECTION_PROMPT
-
     # Mode 1: With RAG (use medical documents)
     if use_rag:
         if not transcription_id:
@@ -63,43 +54,33 @@ def correct_whisper_text(
             )
 
             if documents:
-                # Build prompt with retrieved documents as context
-                context = "\n\n".join(
-                    [f"參考文檔 {i+1}：{doc}" for i, doc in enumerate(documents)]
-                )
-                prompt = (
-                    f"{base_prompt}"
-                    f"以下是一些醫療文檔作為參考：\n{context}\n\n"
-                    f"原文：\n[{whisper_text}]"
+                prompt = build_correction_prompt(
+                    whisper_text=whisper_text,
+                    context_header="以下是一些醫療文檔作為參考：",
+                    context_lines=build_numbered_lines(documents, "參考文檔"),
                 )
             else:
                 # No documents found, fallback to direct LLM
                 print(
                     f"⚠️  No documents found for transcription {transcription_id}, using direct LLM correction"
                 )
-                prompt = f"{base_prompt}原文：\n[{whisper_text}]"
+                prompt = build_correction_prompt(whisper_text=whisper_text)
 
-            corrected_text = model_manager.generate_text(
-                model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
-            )
+            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
             return corrected_text
 
         except Exception as e:
             print(f"⚠️  RAG correction failed: {e}, falling back to direct LLM")
             # Fallback to direct LLM
-            prompt = f"{base_prompt}原文：\n[{whisper_text}]"
-            corrected_text = model_manager.generate_text(
-                model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
-            )
+            prompt = build_correction_prompt(whisper_text=whisper_text)
+            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
             return corrected_text
 
     # Mode 2: Direct LLM correction (no RAG)
-    prompt = f"{base_prompt}原文：\n[{whisper_text}]"
+    prompt = build_correction_prompt(whisper_text=whisper_text)
 
     try:
-        corrected_text = model_manager.generate_text(
-            model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
-        )
+        corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
         return corrected_text
     except Exception as e:
         raise ValueError(f"Failed to generate text with model {model_name}: {e}")
@@ -236,9 +217,6 @@ def correct_whisper_text_with_hematology(
             "transcription_id is required when using Hematology Dictionary RAG"
         )
 
-    # Base prompt for LLM correction
-    base_prompt = BASE_CORRECTION_PROMPT
-
     try:
         # Retrieve relevant hematology dictionary entries using medical terms from query_index
         retriever = HematologyRetriever()
@@ -250,28 +228,19 @@ def correct_whisper_text_with_hematology(
         )
 
         if hematology_entries:
-            # Build prompt with retrieved hematology dictionary entries as context
-            context = "\n\n".join(
-                [
-                    f"參考範例 {i+1}：{entry}"
-                    for i, entry in enumerate(hematology_entries)
-                ]
-            )
-            prompt = (
-                f"{base_prompt}"
-                f"以下是一些血液學醫學詞典範例作為參考：\n{context}\n\n"
-                f"原文：\n[{whisper_text}]"
+            prompt = build_correction_prompt(
+                whisper_text=whisper_text,
+                context_header="以下是一些血液學醫學詞典範例作為參考：",
+                context_lines=build_numbered_lines(hematology_entries, "參考範例"),
             )
         else:
             # No hematology entries found, fallback to direct LLM
             print(
                 f"⚠️  No hematology dictionary entries found for transcription {transcription_id}, using direct LLM correction"
             )
-            prompt = f"{base_prompt}原文：\n[{whisper_text}]"
+            prompt = build_correction_prompt(whisper_text=whisper_text)
 
-        corrected_text = model_manager.generate_text(
-            model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
-        )
+        corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
         return corrected_text
 
     except Exception as e:
@@ -279,10 +248,8 @@ def correct_whisper_text_with_hematology(
             f"⚠️  Hematology Dictionary RAG correction failed: {e}, falling back to direct LLM"
         )
         # Fallback to direct LLM
-        prompt = f"{base_prompt}原文：\n[{whisper_text}]"
-        corrected_text = model_manager.generate_text(
-            model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
-        )
+        prompt = build_correction_prompt(whisper_text=whisper_text)
+        corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
         return corrected_text
 
 

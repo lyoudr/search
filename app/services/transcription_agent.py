@@ -6,8 +6,15 @@ An intelligent agent that dynamically selects and combines tools to correct medi
 import asyncio
 from typing import Dict, Any, Optional, List
 
+from sqlalchemy.orm import Session
+
+from app.repositories import transcription_repository
 from app.services.agent_tools import (
     get_available_tools,
+)
+from app.services.medical_documents_services import (
+    MedicalTermExtractor,
+    MedicalTermVectorStore,
 )
 from app.services.quality_evaluator import QualityEvaluator
 
@@ -305,3 +312,72 @@ class TranscriptionAgent:
     def get_available_strategies(self) -> List[str]:
         """Get list of available correction strategies"""
         return list(self.tools.keys())
+
+
+class TranscriptionTermProcessor:
+    """Process transcriptions to extract and store medical terms using LLM."""
+
+    def __init__(self, embedding_model: str = "openai"):
+        self.term_extractor = MedicalTermExtractor()
+        self.term_store = MedicalTermVectorStore(embedding_model=embedding_model)
+
+    def process_transcription(
+        self,
+        db: Session,
+        transcription_id: int,
+        extraction_model: str = "gpt-5.2",
+    ):
+        transcription = transcription_repository.get_transcription_by_id(db, transcription_id)
+        if not transcription:
+            raise ValueError(f"Transcription {transcription_id} not found")
+
+        print(
+            f"🔍 Extracting medical terms from transcription ID {transcription_id} using LLM..."
+        )
+        terms = self.term_extractor.extract_terms(
+            transcription.text,
+            model_name=extraction_model,
+        )
+
+        if not terms:
+            print(f"⚠️  No medical terms extracted from transcription ID {transcription_id}")
+            return
+
+        print(
+            f"✅ Extracted {len(terms)} medical terms: "
+            f"{', '.join(terms[:10])}{'...' if len(terms) > 10 else ''}"
+        )
+
+        self.term_store.store_terms(
+            terms=terms,
+            transcription_id=transcription_id,
+            metadata={
+                "audio_file_id": transcription.audio_file_id,
+                "engine": transcription.engine,
+            },
+        )
+
+    def process_all_transcriptions(
+        self,
+        db: Session,
+        limit: Optional[int] = None,
+        extraction_model: str = "gpt-5.2",
+    ):
+        transcriptions = transcription_repository.get_all_transcriptions(db)
+        if limit:
+            transcriptions = transcriptions[:limit]
+
+        print(f"📋 Processing {len(transcriptions)} transcriptions...")
+        processed = 0
+        for transcription in transcriptions:
+            try:
+                self.process_transcription(
+                    db,
+                    transcription.id,
+                    extraction_model=extraction_model,
+                )
+                processed += 1
+            except Exception as e:
+                print(f"❌ Failed to process transcription ID {transcription.id}: {e}")
+
+        print(f"✅ Processed {processed}/{len(transcriptions)} transcriptions")

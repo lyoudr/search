@@ -5,18 +5,13 @@ Tools that the agent can use to correct medical transcriptions
 
 from typing import List, Dict, Any
 
-from app.services.model_manager import model_manager
-from app.services.medical_document_retriever import MedicalDocumentRetriever
-from app.services.hematology_retriever import HematologyRetriever
-
-BASE_CORRECTION_PROMPT = (
-    "你是一位醫療語句格式化助理，請根據以下段落修正口語醫療語句，使其語法正確。\n\n"
-    "規則：\n"
-    "1. 不補上任何標點符號\n"
-    "2. 只修正詞彙錯誤\n"
-    "3. 不新增或刪除內容\n"
-    "4. 不輸出任何解釋\n\n"
-    "請只輸出修正後的完整文字內容。\n\n"
+from app.services.medical_documents_services import MedicalDocumentRetriever
+from app.services.hematology_services import HematologyRetriever
+from app.services.correction_core import (
+    build_correction_prompt,
+    build_numbered_lines,
+    extract_unique_metadata_terms,
+    generate_correction_text,
 )
 
 
@@ -51,15 +46,10 @@ class DirectLLMTool(AgentTool):
         :param model_name: LLM model to use
         :return: Dictionary with 'corrected_text' and 'method'
         """
-        base_prompt = f"{BASE_CORRECTION_PROMPT}原文：\n[{whisper_text}]"
+        prompt = build_correction_prompt(whisper_text=whisper_text)
 
         try:
-            corrected_text = model_manager.generate_text(
-                model_name=model_name,
-                prompt=base_prompt,
-                max_length=512,
-                temperature=0.1,
-            )
+            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
 
             return {
                 "corrected_text": corrected_text,
@@ -106,8 +96,6 @@ class MedicalDocumentRAGTool(AgentTool):
         :param top_k_documents: Number of documents per term
         :return: Dictionary with 'corrected_text' and 'method'
         """
-        base_prompt = BASE_CORRECTION_PROMPT
-
         try:
             # Retrieve relevant medical documents
             documents = self.retriever.retrieve_documents_for_correction(
@@ -118,21 +106,16 @@ class MedicalDocumentRAGTool(AgentTool):
             )
 
             if documents:
-                context = "\n\n".join(
-                    [f"參考文檔 {i+1}：{doc}" for i, doc in enumerate(documents)]
-                )
-                prompt = (
-                    f"{base_prompt}"
-                    f"以下是一些醫療文檔作為參考：\n{context}\n\n"
-                    f"原文：\n[{whisper_text}]"
+                prompt = build_correction_prompt(
+                    whisper_text=whisper_text,
+                    context_header="以下是一些醫療文檔作為參考：",
+                    context_lines=build_numbered_lines(documents, "參考文檔"),
                 )
             else:
                 # No documents found, fallback to direct LLM
-                prompt = f"{base_prompt}原文：\n[{whisper_text}]"
+                prompt = build_correction_prompt(whisper_text=whisper_text)
 
-            corrected_text = model_manager.generate_text(
-                model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
-            )
+            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
 
             return {
                 "corrected_text": corrected_text,
@@ -180,8 +163,6 @@ class HematologyRAGTool(AgentTool):
         :param top_k: Number of hematology entries per term
         :return: Dictionary with 'corrected_text' and 'method'
         """
-        base_prompt = BASE_CORRECTION_PROMPT
-
         try:
             # Retrieve relevant hematology dictionary entries
             hematology_entries = self.retriever.retrieve_entries_for_correction(
@@ -192,24 +173,16 @@ class HematologyRAGTool(AgentTool):
             )
 
             if hematology_entries:
-                context = "\n\n".join(
-                    [
-                        f"參考範例 {i+1}：{entry}"
-                        for i, entry in enumerate(hematology_entries)
-                    ]
-                )
-                prompt = (
-                    f"{base_prompt}"
-                    f"以下是一些血液學醫學詞典範例作為參考：\n{context}\n\n"
-                    f"原文：\n[{whisper_text}]"
+                prompt = build_correction_prompt(
+                    whisper_text=whisper_text,
+                    context_header="以下是一些血液學醫學詞典範例作為參考：",
+                    context_lines=build_numbered_lines(hematology_entries, "參考範例"),
                 )
             else:
                 # No entries found, fallback to direct LLM
-                prompt = f"{base_prompt}原文：\n[{whisper_text}]"
+                prompt = build_correction_prompt(whisper_text=whisper_text)
 
-            corrected_text = model_manager.generate_text(
-                model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
-            )
+            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
 
             return {
                 "corrected_text": corrected_text,
@@ -257,8 +230,6 @@ class HematologyVocabularyTool(AgentTool):
         :param top_k: Number of vocabulary terms to retrieve from hematology-vocab index
         :return: Dictionary with 'corrected_text' and 'method'
         """
-        base_prompt = BASE_CORRECTION_PROMPT
-
         try:
             # Create embedding for the transcription text
             query_embedding = self.embedding_service.embed_text(whisper_text)
@@ -271,31 +242,19 @@ class HematologyVocabularyTool(AgentTool):
             )
             
             # Extract vocabulary terms from results
-            vocab_terms = []
-            for result in vocab_results:
-                term = result.get('metadata', {}).get('term', '')
-                if term and term not in vocab_terms:
-                    vocab_terms.append(term)
+            vocab_terms = extract_unique_metadata_terms(vocab_results)
             
             if vocab_terms:
-                context = "\n\n".join(
-                    [
-                        f"參考詞彙 {i+1}：{term}"
-                        for i, term in enumerate(vocab_terms)
-                    ]
-                )
-                prompt = (
-                    f"{base_prompt}"
-                    f"以下是一些血液學醫學詞彙作為參考：\n{context}\n\n"
-                    f"原文：\n[{whisper_text}]"
+                prompt = build_correction_prompt(
+                    whisper_text=whisper_text,
+                    context_header="以下是一些血液學醫學詞彙作為參考：",
+                    context_lines=build_numbered_lines(vocab_terms, "參考詞彙"),
                 )
             else:
                 # No vocabulary terms found, fallback to direct LLM
-                prompt = f"{base_prompt}原文：\n[{whisper_text}]"
+                prompt = build_correction_prompt(whisper_text=whisper_text)
 
-            corrected_text = model_manager.generate_text(
-                model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
-            )
+            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
 
             return {
                 "corrected_text": corrected_text,
@@ -351,8 +310,6 @@ class CombinedRAGTool(AgentTool):
         :param top_k_vocab: Number of hematology vocabulary terms to retrieve
         :return: Dictionary with 'corrected_text' and 'method'
         """
-        base_prompt = BASE_CORRECTION_PROMPT
-
         try:
             # Retrieve from all three sources
             medical_docs = self.medical_retriever.retrieve_documents_for_correction(
@@ -380,11 +337,7 @@ class CombinedRAGTool(AgentTool):
             )
             
             # Extract vocabulary terms from results
-            vocab_terms = []
-            for result in vocab_results:
-                term = result.get('metadata', {}).get('term', '')
-                if term and term not in vocab_terms:
-                    vocab_terms.append(term)
+            vocab_terms = extract_unique_metadata_terms(vocab_results)
 
             # Build context from all three sources
             context_parts = []
@@ -418,18 +371,16 @@ class CombinedRAGTool(AgentTool):
 
             if context_parts:
                 context = "\n".join(context_parts)
-                prompt = (
-                    f"{base_prompt}"
-                    f"以下是一些醫療參考資料：\n{context}\n\n"
-                    f"原文：\n[{whisper_text}]"
+                prompt = build_correction_prompt(
+                    whisper_text=whisper_text,
+                    context_header="以下是一些醫療參考資料：",
+                    context_lines=[context],
                 )
             else:
                 # No context found, fallback to direct LLM
-                prompt = f"{base_prompt}原文：\n[{whisper_text}]"
+                prompt = build_correction_prompt(whisper_text=whisper_text)
 
-            corrected_text = model_manager.generate_text(
-                model_name=model_name, prompt=prompt, max_length=512, temperature=0.1
-            )
+            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
 
             return {
                 "corrected_text": corrected_text,

@@ -4,8 +4,8 @@ import shutil
 from pathlib import Path
 
 
-from app.services.document_processor import DocumentProcessor
-from app.services.hematology_dictionary_loader import HematologyDictionaryLoader
+from app.services.document_services import DocumentProcessor
+from app.services.hematology_services import HematologyDictionaryLoader
 from app.config.settings import get_settings
 
 router = APIRouter(tags=["documents"], prefix="/documents")
