@@ -15,5 +15,18 @@ class WordErrorRateResponse(BaseModel):
     status: str 
 
 class LLMCorrectResponse(BaseModel):
-    status: str 
-    
+    status: str
+
+
+class GoogleTranscribeRequest(BaseModel):
+    """Optional body for Google Speech-to-Text. Audio comes from LLM output's transcription audio file."""
+
+    language_code: str = "zh-TW"
+    sample_rate_hertz: int = 16000
+
+
+class AwsTranscribeRequest(BaseModel):
+    """Optional body for Amazon Transcribe. Audio is uploaded to S3 then transcribed."""
+
+    language_code: str = "zh-TW"
+    media_format: str = "wav"

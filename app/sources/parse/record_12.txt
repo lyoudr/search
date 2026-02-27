@@ -1,0 +1,24 @@
+病例三：多發性骨髓瘤
+Case ID：HEM-ONC-003 主訴
+下背痛與全身無力 2 個月
+Back pain and generalized weakness
+現病史一名 68 歲男性，持續骨痛與疲倦
+伴隨便秘、尿量減少檢驗數據
+Hemoglobin：9.1 g/dL
+Serum calcium：上升（hypercalcemia）
+Creatinine：上升
+Serum protein electrophoresis：出現 M-spike
+Serum free light chain ratio 異常
+骨髓檢查
+Plasma cells：45%
+CD138(+), CD38(+)
+細胞遺傳
+FISH：del(17p)
+影像學
+Whole body MRI：多處溶骨性病灶（lytic lesions）
+診斷
+Multiple Myeloma, high-risk cytogenetics
+治療計畫
+Bortezomib + Lenalidomide + Dexamethasone
+評估自體造血幹細胞移植（Autologous HSCT）
+Bisphosphonate 治療

@@ -32,36 +32,41 @@ pyarrow>=21
 openai>=1.95
 python-dotenv>=1.2
 tqdm>=4.67
-psycopg==3.3.2
-psycopg-binary==3.3.2
-psycopg2-binary==2.9.11
+psycopg==3.2.13
+psycopg-binary==3.2.13
 prometheus-fastapi-instrumentator>=7.1
 webrtcvad==2.0.10
-python-multipart==0.0.21
+python-multipart==0.0.20
 
 pydub==0.25.1
 opencc_python_reimplemented==0.1.7
 qwen==0.1.1
 jiwer==4.0.0
-matplotlib==3.10.8
+matplotlib==3.9.4
 matplotlib-inline==0.2.1
 
 # --- vector database & document processing ---
-langchain==1.2.6
-langchain-core==1.2.7
-langchain-text-splitters==1.1.0
-langchain-community==0.4.1  # For HuggingFace embeddings
-langchain-openai==1.1.7
+langchain==0.3.27
+langchain-core==0.3.83
+langchain-text-splitters==0.3.11
+langchain-community==0.3.31  # For HuggingFace embeddings
+langchain-openai==0.3.35
 docx==0.2.4
 python-docx==1.2.0
 mammoth==1.11.0
 openpyxl==3.1.5
-pinecone==8.0.0
-pinecone-client==6.0.0
-pinecone-plugin-assistant==3.0.1
+pinecone==7.3.0
+pinecone-plugin-assistant==1.8.0
 pinecone-plugin-interface==0.0.7
 
 moviepy==2.2.1
+# AWS
+boto3==1.42.54
+
 # Google
+google-api-core==2.29.0
+google-auth==2.48.0
+google-cloud-core==2.5.0
 google-cloud-speech==2.36.0
 googleapis-common-protos==1.72.0
+grpc-google-iam-v1==0.14.3

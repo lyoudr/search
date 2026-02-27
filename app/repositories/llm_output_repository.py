@@ -1,6 +1,8 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import or_
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
-from app.models.analyze import LLMOutput
+from app.models.analyze import LLMOutput, Transcription
+
 
 def create_llm_output(db: Session, transcription_id: int, llm_model_id: int,
                       prompt_version: Optional[str], text: Optional[str] = None,
@@ -63,6 +65,8 @@ def update_llm_output(
     text_with_rag: Optional[str] = None,
     text_with_hematology: Optional[str] = None,
     text_agent: Optional[str] = None,
+    text_with_google: Optional[str] = None,
+    text_with_aws: Optional[str] = None,
     prompt_version: Optional[str] = None
 ) -> LLMOutput:
     """Update an existing LLM output record"""
@@ -78,6 +82,10 @@ def update_llm_output(
         llm_output.text_with_hematology = text_with_hematology
     if text_agent is not None:
         llm_output.text_agent = text_agent
+    if text_with_google is not None:
+        llm_output.text_with_google = text_with_google
+    if text_with_aws is not None:
+        llm_output.text_with_aws = text_with_aws
     if prompt_version is not None:
         llm_output.prompt_version = prompt_version
     
@@ -100,4 +108,38 @@ def get_llm_outputs_with_ground_truth(db: Session) -> List[LLMOutput]:
 def get_all_llm_outputs(db: Session) -> List[LLMOutput]:
     """Get all LLM outputs"""
     return db.query(LLMOutput).all()
+
+
+def get_llm_outputs_with_null_text_with_google(db: Session) -> List[LLMOutput]:
+    """Get LLM outputs where text_with_google is null or empty (for batch transcribe)."""
+    return (
+        db.query(LLMOutput)
+        .filter(
+            or_(
+                LLMOutput.text_with_google.is_(None),
+                LLMOutput.text_with_google == "",
+            )
+        )
+        .options(
+            joinedload(LLMOutput.transcription).joinedload(Transcription.audio_file)
+        )
+        .all()
+    )
+
+
+def get_llm_outputs_with_null_text_with_aws(db: Session) -> List[LLMOutput]:
+    """Get LLM outputs where text_with_aws is null or empty (for batch transcribe)."""
+    return (
+        db.query(LLMOutput)
+        .filter(
+            or_(
+                LLMOutput.text_with_aws.is_(None),
+                LLMOutput.text_with_aws == "",
+            )
+        )
+        .options(
+            joinedload(LLMOutput.transcription).joinedload(Transcription.audio_file)
+        )
+        .all()
+    )
 

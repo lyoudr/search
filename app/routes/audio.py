@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -13,8 +13,12 @@ from app.schemas.req_res.audio import (
     AnalyzeRequest,
     WordErrorRateResponse,
     LLMCorrectResponse,
+    GoogleTranscribeRequest,
+    AwsTranscribeRequest,
 )
 from app.services.parse_audio import convert_to_wav
+from app.services.google_transcribe import transcribe_audio
+from app.services.aws_transcribe import transcribe_audio as transcribe_audio_aws
 from app.services.split_audio import split_audio as split_audio_service
 from app.services.speech2text import whisper_to_text
 from app.services.llm import (
@@ -29,6 +33,7 @@ from app.repositories import (
     evaluation_repository,
 )
 from app.services.wer import wer
+
 
 router = APIRouter(tags=["audio"], prefix="/audio")
 settings = get_settings()
@@ -382,6 +387,121 @@ def get_llm_model_wer_comparison(db: Session = Depends(get_db)):
         "overall_avg_llm_wer": overall_avg_llm_wer,
         "total_wer_count": total_wer_count,
         "models": models,
+    }
+
+
+@router.post(
+    "/google-transcribe-batch",
+    summary="Transcribe all LLM outputs with null text_with_google via Google Speech-to-Text",
+)
+def google_transcribe_batch(
+    payload: GoogleTranscribeRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Loop through llm_outputs where text_with_google is null; for each, run
+    Google Speech-to-Text on the linked audio and fill text_with_google.
+    """
+    rows = llm_output_repository.get_llm_outputs_with_null_text_with_google(db)
+    processed = 0
+    failed = 0
+    errors = []
+
+    for llm_output in rows:
+        if not llm_output.transcription:
+            failed += 1
+            errors.append({"llm_output_id": llm_output.id, "error": "No transcription linked"})
+            continue
+        audio_file = llm_output.transcription.audio_file
+        if not audio_file or not audio_file.file_path:
+            failed += 1
+            errors.append({"llm_output_id": llm_output.id, "error": "No audio file or path"})
+            continue
+
+        try:
+            transcript = transcribe_audio(
+                audio_path=audio_file.file_path,
+                language_code=payload.language_code,
+                sample_rate_hertz=payload.sample_rate_hertz,
+            )
+            llm_output_repository.update_llm_output(
+                db, llm_output.id, text_with_google=transcript
+            )
+            processed += 1
+        except FileNotFoundError as e:
+            failed += 1
+            errors.append({"llm_output_id": llm_output.id, "error": str(e)})
+        except Exception as e:
+            failed += 1
+            errors.append({"llm_output_id": llm_output.id, "error": f"{e!s}"})
+
+    return {
+        "status": "success",
+        "total_found": len(rows),
+        "processed": processed,
+        "failed": failed,
+        "errors": errors,
+    }
+
+
+
+@router.post(
+    "/aws-transcribe-batch",
+    summary="Transcribe all LLM outputs with null text_with_aws via Amazon Transcribe",
+)
+def aws_transcribe_batch(
+    payload: AwsTranscribeRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Loop through llm_outputs where text_with_aws is null or empty; for each,
+    upload audio to S3, run Amazon Transcribe, and fill text_with_aws.
+    """
+    if not settings.AWS_S3_BUCKET:
+        raise HTTPException(
+            status_code=503,
+            detail="AWS_S3_BUCKET is not configured",
+        )
+    rows = llm_output_repository.get_llm_outputs_with_null_text_with_aws(db)
+    processed = 0
+    failed = 0
+    errors = []
+
+    for llm_output in rows:
+        if not llm_output.transcription:
+            failed += 1
+            errors.append({"llm_output_id": llm_output.id, "error": "No transcription linked"})
+            continue
+        audio_file = llm_output.transcription.audio_file
+        if not audio_file or not audio_file.file_path:
+            failed += 1
+            errors.append({"llm_output_id": llm_output.id, "error": "No audio file or path"})
+            continue
+        try:
+            transcript = transcribe_audio_aws(
+                audio_path=audio_file.file_path,
+                language_code=payload.language_code,
+                media_format=payload.media_format,
+                region_name=settings.AWS_REGION,
+                bucket=settings.AWS_S3_BUCKET,
+            )
+            llm_output_repository.update_llm_output(
+                db, llm_output.id, text_with_aws=transcript
+            )
+            processed += 1
+        except FileNotFoundError as e:
+            failed += 1
+            errors.append({"llm_output_id": llm_output.id, "error": str(e)})
+        except Exception as e:
+            failed += 1
+            errors.append({"llm_output_id": llm_output.id, "error": f"{e!s}"})
+
+    return {
+        "status": "success",
+        "total_found": len(rows),
+        "processed": processed,
+        "failed": failed,
+        "errors": errors,
     }
 
 
