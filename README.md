@@ -17,6 +17,7 @@
 - AWS Transcribe / Google Speech-to-Text
 
 ## Current Architecture
+![Architecture](https://github.com/lyoudr/search/blob/feature/ai-agent/architecture.png)
 
 ### Routers
 
