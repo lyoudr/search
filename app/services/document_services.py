@@ -8,11 +8,9 @@ Document-related services in one place:
 import os
 from pathlib import Path
 from typing import Dict, List, Optional
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from app.services.base_vector_loader import BaseVectorLoader
-
-
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 SUPPORTED_DOCUMENT_EXTENSIONS = {".doc", ".docx", ".txt"}

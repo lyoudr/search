@@ -7,6 +7,7 @@ from typing import List, Dict, Any
 
 from app.services.medical_documents_services import MedicalDocumentRetriever
 from app.services.hematology_services import HematologyRetriever
+from app.ai_agents.tools.shared_vector_tools import EmbeddingTool, PineconeQueryTool
 from app.services.correction_core import (
     build_correction_prompt,
     build_numbered_lines,
@@ -49,7 +50,9 @@ class DirectLLMTool(AgentTool):
         prompt = build_correction_prompt(whisper_text=whisper_text)
 
         try:
-            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
+            corrected_text = generate_correction_text(
+                model_name=model_name, prompt=prompt
+            )
 
             return {
                 "corrected_text": corrected_text,
@@ -115,7 +118,9 @@ class MedicalDocumentRAGTool(AgentTool):
                 # No documents found, fallback to direct LLM
                 prompt = build_correction_prompt(whisper_text=whisper_text)
 
-            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
+            corrected_text = generate_correction_text(
+                model_name=model_name, prompt=prompt
+            )
 
             return {
                 "corrected_text": corrected_text,
@@ -182,7 +187,9 @@ class HematologyRAGTool(AgentTool):
                 # No entries found, fallback to direct LLM
                 prompt = build_correction_prompt(whisper_text=whisper_text)
 
-            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
+            corrected_text = generate_correction_text(
+                model_name=model_name, prompt=prompt
+            )
 
             return {
                 "corrected_text": corrected_text,
@@ -200,6 +207,7 @@ class HematologyRAGTool(AgentTool):
                 "tools_used": ["hematology_rag"],
             }
 
+
 class HematologyVocabularyTool(AgentTool):
     """Tool for vocabulary correction using hematology-vocab index"""
 
@@ -208,10 +216,8 @@ class HematologyVocabularyTool(AgentTool):
             name="hematology_vocabulary",
             description="Retrieve relevant vocabulary terms from hematology-vocab index and use them as context for LLM correction. Best for vocabulary-specific corrections.",
         )
-        from app.services.embedding_service import EmbeddingService
-        from app.services.pinecone_service import PineconeService
-        self.embedding_service = EmbeddingService(model_name="openai")
-        self.vocab_index = PineconeService(index_name="hematology-vocab")
+        self.embedding_tool = EmbeddingTool(model_name="openai")
+        self.vocab_query_tool = PineconeQueryTool(index_name="hematology-vocab")
 
     def execute(
         self,
@@ -232,18 +238,16 @@ class HematologyVocabularyTool(AgentTool):
         """
         try:
             # Create embedding for the transcription text
-            query_embedding = self.embedding_service.embed_text(whisper_text)
-            
+            query_embedding = self.embedding_tool.embed_text(whisper_text)
+
             # Query hematology-vocab index directly
-            vocab_results = self.vocab_index.query(
-                query_vector=query_embedding,
-                top_k=top_k,
-                include_metadata=True
-            )
-            
+            vocab_results = self.vocab_query_tool.execute(
+                query_vector=query_embedding, top_k=top_k, include_metadata=True
+            )["matches"]
+
             # Extract vocabulary terms from results
             vocab_terms = extract_unique_metadata_terms(vocab_results)
-            
+
             if vocab_terms:
                 prompt = build_correction_prompt(
                     whisper_text=whisper_text,
@@ -254,7 +258,9 @@ class HematologyVocabularyTool(AgentTool):
                 # No vocabulary terms found, fallback to direct LLM
                 prompt = build_correction_prompt(whisper_text=whisper_text)
 
-            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
+            corrected_text = generate_correction_text(
+                model_name=model_name, prompt=prompt
+            )
 
             return {
                 "corrected_text": corrected_text,
@@ -271,7 +277,8 @@ class HematologyVocabularyTool(AgentTool):
                 "error": str(e),
                 "tools_used": ["hematology_vocabulary"],
             }
-    
+
+
 class CombinedRAGTool(AgentTool):
     """Tool that combines medical documents, hematology dictionary, and hematology vocabulary"""
 
@@ -282,10 +289,8 @@ class CombinedRAGTool(AgentTool):
         )
         self.medical_retriever = MedicalDocumentRetriever()
         self.hematology_retriever = HematologyRetriever()
-        from app.services.embedding_service import EmbeddingService
-        from app.services.pinecone_service import PineconeService
-        self.embedding_service = EmbeddingService(model_name="openai")
-        self.vocab_index = PineconeService(index_name="hematology-vocab")
+        self.embedding_tool = EmbeddingTool(model_name="openai")
+        self.vocab_query_tool = PineconeQueryTool(index_name="hematology-vocab")
 
     def execute(
         self,
@@ -329,13 +334,11 @@ class CombinedRAGTool(AgentTool):
             )
 
             # Retrieve from hematology-vocab index
-            query_embedding = self.embedding_service.embed_text(whisper_text)
-            vocab_results = self.vocab_index.query(
-                query_vector=query_embedding,
-                top_k=top_k_vocab,
-                include_metadata=True
-            )
-            
+            query_embedding = self.embedding_tool.embed_text(whisper_text)
+            vocab_results = self.vocab_query_tool.execute(
+                query_vector=query_embedding, top_k=top_k_vocab, include_metadata=True
+            )["matches"]
+
             # Extract vocabulary terms from results
             vocab_terms = extract_unique_metadata_terms(vocab_results)
 
@@ -362,12 +365,7 @@ class CombinedRAGTool(AgentTool):
 
             if vocab_terms:
                 context_parts.append("\n血液學詞彙參考：")
-                context_parts.extend(
-                    [
-                        f"  - {term}"
-                        for term in vocab_terms[:5]
-                    ]
-                )
+                context_parts.extend([f"  - {term}" for term in vocab_terms[:5]])
 
             if context_parts:
                 context = "\n".join(context_parts)
@@ -380,7 +378,9 @@ class CombinedRAGTool(AgentTool):
                 # No context found, fallback to direct LLM
                 prompt = build_correction_prompt(whisper_text=whisper_text)
 
-            corrected_text = generate_correction_text(model_name=model_name, prompt=prompt)
+            corrected_text = generate_correction_text(
+                model_name=model_name, prompt=prompt
+            )
 
             return {
                 "corrected_text": corrected_text,
@@ -389,7 +389,11 @@ class CombinedRAGTool(AgentTool):
                 "documents_retrieved": len(medical_docs),
                 "entries_retrieved": len(hematology_entries),
                 "vocab_terms_retrieved": len(vocab_terms),
-                "tools_used": ["medical_document_rag", "hematology_rag", "hematology_vocabulary"],
+                "tools_used": [
+                    "medical_document_rag",
+                    "hematology_rag",
+                    "hematology_vocabulary",
+                ],
             }
         except Exception as e:
             return {
@@ -397,7 +401,11 @@ class CombinedRAGTool(AgentTool):
                 "method": "combined_rag",
                 "success": False,
                 "error": str(e),
-                "tools_used": ["medical_document_rag", "hematology_rag", "hematology_vocabulary"],
+                "tools_used": [
+                    "medical_document_rag",
+                    "hematology_rag",
+                    "hematology_vocabulary",
+                ],
             }
 
 
